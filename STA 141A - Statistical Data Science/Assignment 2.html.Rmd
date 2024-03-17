@@ -1,0 +1,1136 @@
+---
+title: "STA 141A: Assignment 2"
+author: "Kyle Guanzon | Student ID: 916279239"
+output: html_document
+---
+***
+
+**Instructions** You may adapt the code in the course materials or any sources (e.g., the Internet, classmates, friends). In fact, you can craft solutions for almost all questions from the course materials with minor modifications. However, you need to write up your own solutions and acknowledge all sources that you have cited in the Acknowledgement section. 
+
+Failing to acknowledge any non-original efforts will be counted as plagiarism. This incidence will be reported to the Student Judicial Affairs. 
+
+*** 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = TRUE, echo = TRUE, fig.align='center')
+library(tidyverse)
+library(dbplyr)
+library(readr)        # Reading CSV file
+library(ggplot2)  
+```
+
+(1) Pick a data set that you find interesting. This data set should contain at least four variables. Briefly explain the data set (background, source, variables, samples, etc.), and why it interests you. 
+
+Source: Data SF (Link: https://data.sfgov.org/City-Management-and-Ethics/San-Francisco-City-Survey-Data/nufj-bfbw/about_data)
+
+Description of dataset from page: The San Francisco City Survey asks residents to indicate their usage and satisfaction with city services and infrastructure like libraries, Muni, public safety, and street cleanliness. The City Survey was conducted every year from 1996 to 2004, and biennially from 2005 onward. The City Survey was not conducted in 2019 due to the COVID-19 pandemic, and resumed in 2023. Survey methodology was changed in 2015 from a mail to a phone survey, and expanded to include in-person and online options in 2023. Comparisons to previous years should be interpreted with caution.
+
+I am only focusing on the 2023 dataset. 
+
+With a sample size of 2,530, outcomes generally have a ±1.95 percentage point margin of error at a
+95% confidence interval, calculated by the survey implementation firms (2023 City Survey Detailed Methodology, Source: https://www.sf.gov/sites/default/files/2023-04/2023%20City%20Survey%20Detailed%20Methodology.pdf).
+
+1,200 residents responded online, 800 by telephone, and 530 via in-person surveys on the
+street.
+
+InterEthnica and EMC Research administered the survey online, over the telephone, and in-person (2023 City Survey Report, Source: https://www.sf.gov/sites/default/files/2023-04/City%20Survey%202023%20Summary%20Report.pdf).
+
+Survey instrument example:
+https://www.sf.gov/sites/default/files/2023-04/2023%20City%20Survey%20EN%20101822_FINAL.pdf
+
+
+***
+
+(2) For Questions 2 to 8, we visit `flights` and `weather` in the `nycflights13` dataset. 
+```{r}
+# Code obtained from Piazza (Dataset Access HW2)
+
+#Loading package nycflights13
+library(nycflights13)
+```
+
+
+(i) How many observations and variables are there in the `flights` dataset? 
+```{r}
+# Code obtained from ChatGPT
+
+# Get the number of observations (rows)
+num_observations <- nrow(flights)
+
+# Get the number of variables (columns)
+num_variables <- ncol(flights)
+
+# Print the results
+cat("Number of observations:", num_observations, "\n")
+cat("Number of variables:", num_variables, "\n")
+```
+
+(ii) Find out the meanings of `talinum`, `flight`, `carrier`, `dep_delay` and `arr_delay` in the `flights` dataset. 
+```{r}
+?flights
+```
+From R Documentation, we obtain the meanings of the following variables in the flights dataset:
+talinum - Plane tail number. See planes for additional metadata.
+flight - Flight number.
+carrier - Two letter carrier abbreviation. See airlines to get name.
+dep_delay - Departure delays, in minutes. Negative times represent early departures.
+arr_delay - Arrival delays, in minutes. Negative times represent early arrivals.
+
+(iii) Find out the meanings of `visib`,`time_hour`, and `temp` in the `weather` data set. 
+```{r}
+?weather
+```
+From R Documentation, we obtain the meanings of the following variables in the weather dataset:
+visib - Visibility in miles.
+time_hour - Date and hour of the recording as a POSIXct date.
+temp - Temperature in F.
+
+***
+
+(3) Extract the entries for _Alaska Airlines_ from the `flights` dataset using `filter()` and `%>%`. Name the selected subset as `alaska_flights`.
+Furthermore, extract the weather data for EWR airport in January using `filter` and `%>%`, and name it as `early_january_weather` from `weather`.
+```{r}
+#Code obtained from ChatGPT
+
+# Extract Alaska Airlines flights
+alaska_flights <- flights %>%
+  filter(carrier == "AS")
+
+# Extract weather data for EWR airport in January
+early_january_weather <- weather %>%
+  filter(origin == "EWR" & month == 1)
+```
+
+***
+
+(4) Create a scatterplot of `dep_delay` and `arr_delay` in the `alaska_flights` data without using transparency. What do you find about the relationship between these two variable? What are some practical reasons for this relationship?
+```{r}
+#Code obtained from ChatGPT
+
+# Create scatterplot without transparency
+ggplot(alaska_flights, aes(x = dep_delay, y = arr_delay)) +
+  geom_point(alpha = 1) +  # Set alpha to 1 for no transparency
+  labs(title = "Depature Delay vs. Arrival Delay for Alaska Flights",
+       x = "Departure Delay (minutes)",
+       y = "Arrival Delay (minutes)")
+```
+From the scatterplot, we can see a positive relationship between Arrival Delay and Departure Delay. Thus, we can make the assumption that the longer the Departure Delay, the longer the Arrival Delay. 
+
+***
+
+(5) Re-draw the plot in Part 4 with transparency set to be 0.2. Compare the two plot and explain your findings, if any. 
+```{r}
+#Code obtained from ChatGPT
+
+# Create scatterplot with transparency set to 0.2
+ggplot(alaska_flights, aes(x = dep_delay, y = arr_delay)) +
+  geom_point(alpha = 0.2) +  # Set alpha to 0.2 for transparency
+  labs(title = "Depature Delay vs. Arrival Delay for Alaska Flights",
+       x = "Departure Delay (minutes)",
+       y = "Arrival Delay (minutes)")
+```
+There is a concentration of data points with delays in the lower left region of the scatterplot. This is because there are plenty of flights that have arrival/delay times between 0-5 minutes. 
+
+***
+
+(6) For the `early_january_weather` data, create a linegraph with `time_hour` on the `x`-axis and `temp` on the `y`-axis.  What do you find from the plot?
+
+```{r}
+# Code obtained from ChatGPT
+
+# Line graph for temperature over time
+ggplot(early_january_weather, aes(x = time_hour, y = temp)) +
+  geom_line() +
+  labs(title = "Temperature Variation in Early January",
+       x = "Time (Hour)",
+       y = "Temperature (Fahrenheit)")
+```
+In the line graph, we can see lower temperatures between January 21 and January 28, and high temperatures peak after January 28. We can also see a steady increase of temperatures from December 31 to January 14. 
+
+***
+
+(7) Generate data from the following model.
+$$y_i = x_i\beta_1 + z_i\beta_2+x_i z_i \beta_3+ \epsilon_i, i = 1,\ldots, 100$$
+where $\beta_1=1$, $\beta_2=2$, $\beta_3 =1$, and $\epsilon_i \sim \mathcal{N}(0,1)$. For $x_i$ and $z_i$, generate them as 
+$$ x_i \sim\  {\rm uniform} \ (-2,2) \ {\rm and}\  z_i =\tilde{\epsilon}_i,$$
+where  $\tilde{\epsilon}_i\sim \mathcal{N}(0,0.5)$.  Fit a linear regression with $y$ as the outcome and $x$ as the covariate (i.e., without $z$) using `lm()`. Report the estimated coefficients. 
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Generate independent variables
+x <- runif(n, min = -2, max = 2)
+z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+
+# Define coefficients
+beta1 <- 1
+beta2 <- 2
+beta3 <- 1
+
+# Generate error term
+epsilon <- rnorm(n)
+
+# Generate dependent variable
+y <- x * beta1 + z * beta2 + x * z * beta3 + epsilon
+
+# Create a data frame
+data <- data.frame(y, x, z)
+
+# Check the first few rows of the data
+head(data)
+
+# Fit linear regression model
+model <- lm(y ~ x, data = data)
+
+# Summary of the model
+summary(model)
+coef(model)
+```
+***
+
+(8) Wrap the code in Part 7 into a function, and run a simulation of 5000 instances to obtain the estimated coefficients. Draw a histogram of the estimated coefficients $\hat{\beta}_1$s of $x$ from your simulation, add a vertical line (solid, black) to represent the simulation mean, and add another vertical line (dashed, red) to represent the true value (i.e., 1). Report your findings (hint: you may want to review unbiasedness). 
+
+```{r}
+# Function to simulate data and fit linear regression model
+simulate_and_fit <- function(n) {
+  # Generate independent variables
+  x <- runif(n, min = -2, max = 2)
+  z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+
+  # Define coefficients
+  beta1 <- 1
+  beta2 <- 2
+  beta3 <- 1
+
+  # Generate error term
+  epsilon <- rnorm(n)
+
+  # Generate dependent variable
+  y <- x * beta1 + z * beta2 + x * z * beta3 + epsilon
+
+  # Create a data frame
+  data <- data.frame(y, x, z)
+
+  # Fit linear regression model
+  model <- lm(y ~ x, data = data)
+  
+  # Return estimated coefficients
+  return(coef(model))
+}
+
+# Number of simulations
+num_simulations <- 5000
+
+# Run simulations
+results <- replicate(num_simulations, simulate_and_fit(100))
+
+# Print mean and standard deviation of estimated coefficients
+cat("Mean of estimated coefficients:\n")
+print(apply(results, 1, mean))
+cat("\nStandard deviation of estimated coefficients:\n")
+print(apply(results, 1, sd))
+
+# Draw histogram of estimated coefficients
+hist(results[1, ], breaks = 30, col = "lightblue", xlab = expression(hat(beta[1])), main = "Histogram of Estimated Coefficients")
+
+# Add vertical line for simulation mean
+abline(v = mean(results[1, ]), col = "black", lwd = 2)
+
+# Add vertical line for true value
+abline(v = 1, col = "red", lwd = 2, lty = 2)
+```
+***
+
+(9) Report the simulation mean from Part 8. Then run another simulation under the same setting to verify that your simulation is reproducible. Specifically, the new simulation mean should be identical to the mean from Part 8.
+
+```{r}
+# Calculate simulation mean of estimated coefficients
+simulation_mean <- mean(results[1, ])
+
+# Print simulation mean
+cat("Simulation mean of estimated coefficient (beta1_hat):", simulation_mean, "\n")
+
+# Run another simulation with the same setting
+results_new <- replicate(num_simulations, simulate_and_fit(100))
+
+# Calculate simulation mean of estimated coefficients from the new simulation
+simulation_mean_new <- mean(results_new[1, ])
+
+# Print simulation mean from the new simulation
+cat("Simulation mean of estimated coefficient (beta1_hat) from the new simulation:", simulation_mean_new, "\n")
+
+# Check if the simulation mean from the new simulation matches the previous one
+if(simulation_mean == simulation_mean_new) {
+  cat("Simulation is reproducible. The simulation mean is identical to the previous one.\n")
+} else {
+  cat("Simulation is not reproducible. The simulation mean differs from the previous one.\n")
+}
+
+```
+***
+
+(10)  Generate data from a similar model.   
+$$y_i = x_i\beta_1 + z_i\beta_2+\epsilon_i, i = 1,\ldots, 100$$
+where $\beta_1=1$, $\beta_2=2$, and $\epsilon_i \sim \mathcal{N}(0,1)$. For $x_i$ and $z_i$, generate them as 
+$$ x_i \sim\  {\rm uniform} \ (-2,2) \ {\rm and}\  z_i =   \gamma_1 x_i+\gamma_0+\tilde{\epsilon}_i,$$
+where $\gamma_1=1$, $\gamma_0=1$and $\tilde{\epsilon}_i\sim \mathcal{N}(0,0.5)$.  Suppose we fit a regression model with $y$ as the outcome and $x$ as the covariate (i.e., without $z$). Examine whether, in this model, the estimator for the coefficient of $x$ is unbiased using simulation.  
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Number of simulations
+num_simulations <- 1000
+
+# Define true coefficient for x
+true_coeff_x <- 1
+
+# Initialize vector to store estimated coefficients
+estimated_coefficients <- numeric(num_simulations)
+
+# Simulation loop
+for (i in 1:num_simulations) {
+  # Generate independent variable x
+  x <- runif(n, min = -2, max = 2)
+  
+  # Define coefficients for z
+  gamma1 <- 1
+  gamma0 <- 1
+  
+  # Generate error term for z
+  epsilon_z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+  
+  # Generate dependent variable z
+  z <- gamma1 * x + gamma0 + epsilon_z
+  
+  # Generate error term for y
+  epsilon_y <- rnorm(n)
+  
+  # Generate dependent variable y
+  y <- x * true_coeff_x + z * 0 + epsilon_y
+  
+  # Fit linear regression model
+  model <- lm(y ~ x)
+  
+  # Store estimated coefficient for x
+  estimated_coefficients[i] <- coef(model)[2]  # Index 2 corresponds to the coefficient for x
+}
+
+# Calculate bias of the estimated coefficient for x
+bias <- mean(estimated_coefficients - true_coeff_x)
+
+# Print bias
+cat("Bias of the estimated coefficient for x:", bias, "\n")
+```
+***
+## Acknowledgement {-}
+
+
+Failing to acknowledge any non-original efforts will be counted as plagiarism. This incidence will be reported to the Student Judicial Affairs. 
+
+If you use generative AI to solve any questions, please provide your instructions,  conversations, and prompts here. 
+
+ChatGPT Code Chunk:
+
+```{}
+sessionInfo()
+in nycflights13 dataset in r, Create a scatterplot of `dep_delay` and `arr_delay` in the `alaska_flights` data without using transparency
+ChatGPT
+To create a scatterplot of dep_delay and arr_delay in the alaska_flights dataset from the nycflights13 package in R without using transparency, you can use the ggplot2 package. Here's how you can do it:
+
+R
+Copy code
+# Load required libraries
+library(nycflights13)
+library(ggplot2)
+
+# Filter the Alaska flights data
+alaska_flights <- filter(flights, carrier == "AS")
+
+# Create scatterplot without transparency
+ggplot(alaska_flights, aes(x = dep_delay, y = arr_delay)) +
+  geom_point(alpha = 1) +  # Set alpha to 1 for no transparency
+  labs(title = "Depature Delay vs. Arrival Delay for Alaska Flights",
+       x = "Departure Delay (minutes)",
+       y = "Arrival Delay (minutes)")
+This code will create a scatterplot of dep_delay (Departure Delay) on the x-axis and arr_delay (Arrival Delay) on the y-axis for Alaska flights, without using any transparency for the points.
+
+User
+(3) Extract the entries for _Alaska Airlines_ from the `flights` dataset using `filter()` and `%>%`. Name the selected subset as `alaska_flights`.
+Furthermore, extract the weather data for EWR airport in January using `filter` and `%>%`, and name it as `early_january_weather` from `weather`.
+ChatGPT
+To extract the entries for Alaska Airlines from the flights dataset using filter() and %>%, and to extract the weather data for EWR airport in January using filter and %>%, you can follow these steps:
+
+R
+Copy code
+library(nycflights13)
+library(dplyr)
+
+# Extract Alaska Airlines flights
+alaska_flights <- flights %>%
+  filter(carrier == "AS")
+
+# Extract weather data for EWR airport in January
+early_january_weather <- weather %>%
+  filter(origin == "EWR" & month == 1)
+In this code:
+
+We first load the nycflights13 package and dplyr library.
+Then, we use %>% (pipe operator) to perform operations on data frames.
+We use filter() to subset the flights dataset where the carrier is "AS" (Alaska Airlines), and store the result in alaska_flights.
+Similarly, we use filter() to subset the weather dataset where the origin is "EWR" (Newark Liberty International Airport) and the month is 1 (January), and store the result in early_january_weather.
+User
+ Re-draw the plot in Part 4 with transparency set to be 0.2. Compare the two plot and explain your findings, if any. 
+ChatGPT
+To redraw the plot from Part 4 with transparency set to 0.2 and compare it with the previous plot, you can modify the geom_point() function to include the alpha parameter. Here's the updated code:
+
+r
+Copy code
+library(nycflights13)
+library(ggplot2)
+
+# Filter the Alaska flights data
+alaska_flights <- filter(flights, carrier == "AS")
+
+# Create scatterplot with transparency set to 0.2
+ggplot(alaska_flights, aes(x = dep_delay, y = arr_delay)) +
+  geom_point(alpha = 0.2) +  # Set alpha to 0.2 for transparency
+  labs(title = "Depature Delay vs. Arrival Delay for Alaska Flights",
+       x = "Departure Delay (minutes)",
+       y = "Arrival Delay (minutes)")
+Comparing this plot with the previous one:
+
+Transparency: In the new plot, the points are semi-transparent (with an alpha of 0.2), whereas in the previous plot, there was no transparency (alpha = 1). This change affects the visual perception of overlapping points.
+
+Visual Density: With an alpha of 0.2, overlapping points will appear darker, indicating areas of higher density. This allows for a better understanding of where points are concentrated in the plot.
+
+Clarity: While the previous plot may appear cleaner due to no transparency, the new plot with transparency provides a clearer indication of point density and distribution, especially in regions with a high concentration of points.
+
+Overall, adding transparency to the plot can provide additional insights into the data distribution and density, making it easier to identify patterns and outliers.
+
+User
+For the `early_january_weather` data, create a linegraph with `time_hour` on the `x`-axis and `temp` on the `y`-axis.  What do you find from the plot?
+ChatGPT
+To create a line graph with time_hour on the x-axis and temp (temperature) on the y-axis using the early_january_weather data, you can use the ggplot2 library in R. Here's how you can do it:
+
+r
+Copy code
+library(ggplot2)
+
+# Line graph for temperature over time
+ggplot(early_january_weather, aes(x = time_hour, y = temp)) +
+  geom_line() +
+  labs(title = "Temperature Variation in Early January",
+       x = "Time (Hour)",
+       y = "Temperature (Fahrenheit)")
+This code creates a line graph showing the variation of temperature over time in early January at EWR airport.
+
+From the plot, you can observe:
+
+Trend: You can identify any overall trends or patterns in temperature changes over the time period represented in the data.
+
+Seasonality: Depending on the granularity of the time data (time_hour), you may also observe daily temperature fluctuations, which can indicate daily patterns or seasonality.
+
+Outliers or Anomalies: Sudden spikes or dips in temperature may indicate outliers or anomalous weather events during the time period.
+
+Analyzing the line graph can provide insights into the temperature patterns during early January at EWR airport, which can be useful for understanding weather conditions during that time period.
+
+(i) How many observations and variables are there in the `flights` dataset?
+ChatGPT
+The flights dataset typically refers to a dataset commonly used in R programming language tutorials. It contains information about flights departing from New York City airports in 2013.
+
+The dataset has 336,776 observations (rows) and 19 variables (columns).
+
+User
+in r
+ChatGPT
+To get the number of observations and variables in the flights dataset in R, you can use the nrow() function to count the number of rows (observations) and the ncol() function to count the number of columns (variables). If the flights dataset is loaded into your R environment, you can use these functions as follows:
+
+R
+Copy code
+# Load the nycflights13 package to access the flights dataset
+library(nycflights13)
+
+# Get the number of observations (rows)
+num_observations <- nrow(flights)
+
+# Get the number of variables (columns)
+num_variables <- ncol(flights)
+
+# Print the results
+cat("Number of observations:", num_observations, "\n")
+cat("Number of variables:", num_variables, "\n")
+This code will output the number of observations and variables in the flights dataset.
+
+Generate data from the following model:
+$$y_i = x_i\beta_1 + z_i\beta_2+x_i z_i \beta_3+ \epsilon_i, i = 1,\ldots, 100$$ where $\beta_1=1$, $\beta_2=2$, $\beta_3 =1$, and $\epsilon_i \sim \mathcal{N}(0,1)$. For $x_i$ and $z_i$, generate them as $$ x_i \sim\  {\rm uniform} \ (-2,2) \ {\rm and}\  z_i =\tilde{\epsilon}_i,$$ where  $\tilde{\epsilon}_i\sim \mathcal{N}(0,0.5)$.  Fit a linear regression with $y$ as the outcome and $x$ as the covariate (i.e., without $z$) using `lm()`. Report the estimated coefficients. 
+
+3 / 3
+
+ChatGPT
+To generate the data and fit the linear regression model in R, you can follow these steps:
+
+R
+Copy code
+# Set seed for reproducibility
+set.seed(42)
+
+# Generate data
+n <- 100
+x <- runif(n, -2, 2)
+z <- rnorm(n, 0, sqrt(0.5))
+epsilon <- rnorm(n, 0, 1)
+y <- x + 2*z + x*z + epsilon
+
+# Create data frame
+data <- data.frame(y = y, x = x)
+
+# Fit linear regression
+model <- lm(y ~ x, data = data)
+
+# Print coefficients
+print(summary(model)$coefficients)
+This code will generate the data according to the specified model, fit a linear regression model with $y$ as the outcome and $x$ as the covariate using lm(), and print the estimated coefficients.
+
+User
+Generate data from the following model in r
+$$y_i = x_i\beta_1 + z_i\beta_2+x_i z_i \beta_3+ \epsilon_i, i = 1,\ldots, 100$$ where $\beta_1=1$, $\beta_2=2$, $\beta_3 =1$, and $\epsilon_i \sim \mathcal{N}(0,1)$.
+
+2 / 2
+
+ChatGPT
+To generate data from the given model in R, you can follow these steps:
+
+R
+Copy code
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Generate independent variables
+x <- rnorm(n)
+z <- rnorm(n)
+
+# Define coefficients
+beta1 <- 1
+beta2 <- 2
+beta3 <- 1
+
+# Generate error term
+epsilon <- rnorm(n)
+
+# Generate dependent variable
+y <- x * beta1 + z * beta2 + x * z * beta3 + epsilon
+
+# Create a data frame
+data <- data.frame(y, x, z)
+
+# Check the first few rows of the data
+head(data)
+This code generates 100 observations according to the specified model, where x, z, and epsilon are drawn from standard normal distributions, and then y is calculated based on the provided equation. Finally, the data is stored in a data frame called data.
+
+User
+For $x_i$ and $z_i$, generate them as 
+$$ x_i \sim\  {\rm uniform} \ (-2,2) \ {\rm and}\  z_i =\tilde{\epsilon}_i,$$ where  $\tilde{\epsilon}_i\sim \mathcal{N}(0,0.5)$.  
+ChatGPT
+To generate 
+�
+�
+x 
+i
+​
+  from a uniform distribution and 
+�
+�
+z 
+i
+​
+  from a normal distribution with mean 0 and variance 0.5, you can modify the code as follows:
+
+r
+Copy code
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Generate independent variables
+x <- runif(n, min = -2, max = 2)
+z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+
+# Define coefficients
+beta1 <- 1
+beta2 <- 2
+beta3 <- 1
+
+# Generate error term
+epsilon <- rnorm(n)
+
+# Generate dependent variable
+y <- x * beta1 + z * beta2 + x * z * beta3 + epsilon
+
+# Create a data frame
+data <- data.frame(y, x, z)
+
+# Check the first few rows of the data
+head(data)
+In this modified code, x is generated using runif() function to draw samples from a uniform distribution between -2 and 2, and z is generated using rnorm() function with mean 0 and standard deviation sqrt(0.5) to ensure the variance is 0.5.
+
+User
+Fit a linear regression with $y$ as the outcome and $x$ as the covariate (i.e., without $z$) using `lm()`. Report the estimated coefficients. 
+ChatGPT
+To fit a linear regression model with 
+�
+y as the outcome and 
+�
+x as the covariate (without including 
+�
+z), you can use the lm() function in R. Here's how you can do it:
+
+r
+Copy code
+# Fit linear regression model
+model <- lm(y ~ x, data = data)
+
+# Summary of the model
+summary(model)
+This code will fit a linear regression model with 
+�
+y as the outcome variable and 
+�
+x as the predictor variable using the lm() function. The summary() function will then display the summary of the fitted model, including the estimated coefficients.
+
+User
+Wrap the code into a function, and run a simulation of 5000 instances to obtain the estimated coefficients.
+ChatGPT
+Sure, here's the code wrapped into a function and run for 5000 instances:
+
+r
+Copy code
+# Function to simulate data and fit linear regression model
+simulate_and_fit <- function(n) {
+  # Generate independent variables
+  x <- runif(n, min = -2, max = 2)
+  z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+
+  # Define coefficients
+  beta1 <- 1
+  beta2 <- 2
+  beta3 <- 1
+
+  # Generate error term
+  epsilon <- rnorm(n)
+
+  # Generate dependent variable
+  y <- x * beta1 + z * beta2 + x * z * beta3 + epsilon
+
+  # Create a data frame
+  data <- data.frame(y, x, z)
+
+  # Fit linear regression model
+  model <- lm(y ~ x, data = data)
+  
+  # Return estimated coefficients
+  return(coef(model))
+}
+
+# Number of simulations
+num_simulations <- 5000
+
+# Run simulations
+results <- replicate(num_simulations, simulate_and_fit(100))
+
+# Print mean and standard deviation of estimated coefficients
+cat("Mean of estimated coefficients:\n")
+print(apply(results, 1, mean))
+cat("\nStandard deviation of estimated coefficients:\n")
+print(apply(results, 1, sd))
+This code defines a function simulate_and_fit that generates data and fits a linear regression model for a given sample size n. It then runs 5000 simulations using replicate and stores the estimated coefficients in the results variable. Finally, it prints the mean and standard deviation of the estimated coefficients across the simulations.
+
+User
+Draw a histogram of the estimated coefficients $\hat{\beta}_1$s of $x$ from your simulation, add a vertical line (solid, black) to represent the simulation mean, and add another vertical line (dashed, red) to represent the true value (i.e., 1). 
+ChatGPT
+Here's how you can draw the histogram of the estimated coefficients 
+�
+^
+1
+β
+^
+​
+  
+1
+​
+ s of 
+�
+x from the simulation, along with vertical lines to represent the simulation mean and the true value:
+
+r
+Copy code
+# Draw histogram of estimated coefficients
+hist(results[1, ], breaks = 30, col = "lightblue", xlab = expression(hat(beta[1])), main = "Histogram of Estimated Coefficients")
+
+# Add vertical line for simulation mean
+abline(v = mean(results[1, ]), col = "black", lwd = 2)
+
+# Add vertical line for true value
+abline(v = 1, col = "red", lwd = 2, lty = 2)
+This code will draw a histogram of the estimated coefficients 
+�
+^
+1
+β
+^
+​
+  
+1
+​
+ s of 
+�
+x from the simulation. It then adds a solid black vertical line to represent the simulation mean and a dashed red vertical line to represent the true value of 
+�
+1
+β 
+1
+​
+ .
+
+User
+Report the simulation mean
+ChatGPT
+To report the simulation mean of the estimated coefficients 
+�
+^
+1
+β
+^
+​
+  
+1
+​
+ s of 
+�
+x, you can simply calculate the mean of the relevant column in the results matrix. Here's the code to do that:
+
+r
+Copy code
+# Calculate simulation mean of estimated coefficients
+simulation_mean <- mean(results[1, ])
+
+# Print simulation mean
+cat("Simulation mean of estimated coefficient (beta1_hat):", simulation_mean, "\n")
+This code calculates the simulation mean of the estimated coefficients 
+�
+^
+1
+β
+^
+​
+  
+1
+​
+ s of 
+�
+x and prints the result. You can run this code after running the previous code snippet for drawing the histogram.
+
+User
+Then run another simulation under the same setting to verify that your simulation is reproducible. Specifically, the new simulation mean should be identical to the mean from the previous simulation
+ChatGPT
+To verify the reproducibility of the simulation, you can simply rerun the same simulation code and check if the simulation mean remains the same. Here's the code to do that:
+
+r
+Copy code
+# Run another simulation with the same setting
+results_new <- replicate(num_simulations, simulate_and_fit(100))
+
+# Calculate simulation mean of estimated coefficients from the new simulation
+simulation_mean_new <- mean(results_new[1, ])
+
+# Print simulation mean from the new simulation
+cat("Simulation mean of estimated coefficient (beta1_hat) from the new simulation:", simulation_mean_new, "\n")
+
+# Check if the simulation mean from the new simulation matches the previous one
+if(simulation_mean == simulation_mean_new) {
+  cat("Simulation is reproducible. The simulation mean is identical to the previous one.\n")
+} else {
+  cat("Simulation is not reproducible. The simulation mean differs from the previous one.\n")
+}
+This code reruns the simulation under the same settings and calculates the simulation mean of the estimated coefficients 
+�
+^
+1
+β
+^
+​
+  
+1
+​
+ s of 
+�
+x from the new simulation. It then compares this simulation mean with the one obtained from the previous simulation to check for reproducibility. If the simulation mean from the new simulation matches the previous one, it confirms that the simulation is reproducible.
+
+User
+Generate data from a similar model.   
+$$y_i = x_i\beta_1 + z_i\beta_2+\epsilon_i, i = 1,\ldots, 100$$
+where $\beta_1=1$, $\beta_2=2$, and $\epsilon_i \sim \mathcal{N}(0,1)$.
+ChatGPT
+To generate data from the modified model where 
+�
+�
+=
+�
+�
+�
+1
++
+�
+�
+�
+2
++
+�
+�
+y 
+i
+​
+ =x 
+i
+​
+ β 
+1
+​
+ +z 
+i
+​
+ β 
+2
+​
+ +ϵ 
+i
+​
+ , you can use the following R code:
+
+r
+Copy code
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Generate independent variables
+x <- runif(n, min = -2, max = 2)
+z <- rnorm(n)
+
+# Define coefficients
+beta1 <- 1
+beta2 <- 2
+
+# Generate error term
+epsilon <- rnorm(n)
+
+# Generate dependent variable
+y <- x * beta1 + z * beta2 + epsilon
+
+# Create a data frame
+data <- data.frame(y, x, z)
+
+# Check the first few rows of the data
+head(data)
+This code generates 100 observations according to the modified model, where 
+�
+�
+x 
+i
+​
+  is drawn from a uniform distribution between -2 and 2, 
+�
+�
+z 
+i
+​
+  is drawn from a standard normal distribution, and 
+�
+�
+ϵ 
+i
+​
+  is drawn from a normal distribution with mean 0 and standard deviation 1. Finally, it stores the data in a data frame called data.
+
+User
+For $x_i$ and $z_i$, generate them as 
+$$ x_i \sim\  {\rm uniform} \ (-2,2) \ {\rm and}\  z_i =   \gamma_1 x_i+\gamma_0+\tilde{\epsilon}_i,$$ where $\gamma_1=1$, $\gamma_0=1$and $\tilde{\epsilon}_i\sim \mathcal{N}(0,0.5)$.
+ChatGPT
+To generate 
+�
+�
+x 
+i
+​
+  from a uniform distribution and 
+�
+�
+z 
+i
+​
+  from the specified model, you can use the following R code:
+
+r
+Copy code
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Generate independent variable x
+x <- runif(n, min = -2, max = 2)
+
+# Define coefficients for z
+gamma1 <- 1
+gamma0 <- 1
+
+# Generate error term for z
+epsilon_z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+
+# Generate dependent variable z
+z <- gamma1 * x + gamma0 + epsilon_z
+
+# Define coefficients for y
+beta1 <- 1
+beta2 <- 2
+
+# Generate error term for y
+epsilon_y <- rnorm(n)
+
+# Generate dependent variable y
+y <- x * beta1 + z * beta2 + epsilon_y
+
+# Create a data frame
+data <- data.frame(y, x, z)
+
+# Check the first few rows of the data
+head(data)
+In this code:
+
+�
+�
+x 
+i
+​
+  is generated from a uniform distribution between -2 and 2.
+�
+�
+z 
+i
+​
+  is generated according to the specified model 
+�
+1
+�
+�
++
+�
+0
++
+�
+~
+�
+γ 
+1
+​
+ x 
+i
+​
+ +γ 
+0
+​
+ + 
+ϵ
+~
+  
+i
+​
+ , where 
+�
+1
+=
+1
+γ 
+1
+​
+ =1, 
+�
+0
+=
+1
+γ 
+0
+​
+ =1, and 
+�
+~
+�
+ϵ
+~
+  
+i
+​
+  is drawn from a normal distribution with mean 0 and standard deviation 0.5.
+�
+�
+y 
+i
+​
+  is generated based on the provided model 
+�
+�
+=
+�
+�
+�
+1
++
+�
+�
+�
+2
++
+�
+�
+y 
+i
+​
+ =x 
+i
+​
+ β 
+1
+​
+ +z 
+i
+​
+ β 
+2
+​
+ +ϵ 
+i
+​
+ , where 
+�
+1
+=
+1
+β 
+1
+​
+ =1, 
+�
+2
+=
+2
+β 
+2
+​
+ =2, and 
+�
+�
+ϵ 
+i
+​
+  is drawn from a standard normal distribution.
+Finally, the data is stored in a data frame called data.
+User
+Suppose we fit a regression model with $y$ as the outcome and $x$ as the covariate (i.e., without $z$). Examine whether, in this model, the estimator for the coefficient of $x$ is unbiased using simulation.  
+ChatGPT
+To examine whether the estimator for the coefficient of 
+�
+x is unbiased in the model where 
+�
+y is the outcome and 
+�
+x is the covariate (without including 
+�
+z), we can perform a simulation study. In each simulation, we'll generate data according to the specified model, fit a linear regression model with 
+�
+y as the outcome and 
+�
+x as the covariate, and then assess whether the estimated coefficient for 
+�
+x is unbiased across multiple simulations.
+
+Here's how you can do it in R:
+
+r
+Copy code
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size
+n <- 100
+
+# Number of simulations
+num_simulations <- 1000
+
+# Define true coefficient for x
+true_coeff_x <- 1
+
+# Initialize vector to store estimated coefficients
+estimated_coefficients <- numeric(num_simulations)
+
+# Simulation loop
+for (i in 1:num_simulations) {
+  # Generate independent variable x
+  x <- runif(n, min = -2, max = 2)
+  
+  # Define coefficients for z
+  gamma1 <- 1
+  gamma0 <- 1
+  
+  # Generate error term for z
+  epsilon_z <- rnorm(n, mean = 0, sd = sqrt(0.5))
+  
+  # Generate dependent variable z
+  z <- gamma1 * x + gamma0 + epsilon_z
+  
+  # Generate error term for y
+  epsilon_y <- rnorm(n)
+  
+  # Generate dependent variable y
+  y <- x * true_coeff_x + z * 0 + epsilon_y
+  
+  # Fit linear regression model
+  model <- lm(y ~ x)
+  
+  # Store estimated coefficient for x
+  estimated_coefficients[i] <- coef(model)[2]  # Index 2 corresponds to the coefficient for x
+}
+
+# Calculate bias of the estimated coefficient for x
+bias <- mean(estimated_coefficients - true_coeff_x)
+
+# Print bias
+cat("Bias of the estimated coefficient for x:", bias, "\n")
+This code performs a simulation study where it generates data according to the specified model, fits a linear regression model with 
+�
+y as the outcome and 
+�
+x as the covariate, and then calculates the bias of the estimated coefficient for 
+�
+x across multiple simulations. If the bias is close to zero, it suggests that the estimator for the coefficient of 
+�
+x is unbiased in this model.
+```
+
+## Session information {-}
+```{r}
+sessionInfo()
+```

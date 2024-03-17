@@ -1,0 +1,284 @@
+---
+title: "STA 141A Final Project"
+author: "Kyle Guanzon"
+date: "2024-01-23"
+output: html_document
+---
+
+## Overview
+
+This document contains instructions on the **course project** for STA 141A Winter 2024. This document is made with `R markdown`. The `rmd` file to generate this document is available on the course website. 
+
+# Background
+
+In this project, we analyze a subset of data collected by Steinmetz et al. (2019). While this document provides the basic understanding of the experiments, it is highly recommended that one consults the original publication for a more comprehensive understanding in order to improve the quality of the analysis report.
+
+In the study conducted by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions. Each session comprised several hundred trials, during which visual stimuli were randomly presented to the mouse on two screens positioned on both sides of it. The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus. The mice were required to make decisions based on the visual stimuli, using a wheel controlled by their forepaws. A reward or penalty (i.e., feedback) was subsequently administered based on the outcome of their decisions. In particular, 
+
+- When left contrast > right contrast, success (1) if turning the wheel to the right and failure (-1) otherwise.  
+- When right contrast > left contrast, success (1) if turning the wheel to the left and failure (-1) otherwise.  
+- When both left and right contrasts are zero, success (1) if holding the wheel still and failure (-1) otherwise. 
+- When left and right contrasts are equal but non-zero, left or right will be randomly chosen (50%) as the correct choice. 
+
+The activity of the neurons in the mice's visual cortex was recorded during the trials and made available in the form of spike trains, which are collections of timestamps corresponding to neuron firing. In this project, we focus specifically on the spike trains of neurons from the onset of the stimuli to 0.4 seconds post-onset. In addition, we only use 18 sessions (Sessions 1 to 18) from four mice: Cori, Frossman, Hence, and Lederberg.
+
+
+# Data structure 
+---
+
+A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyverse)
+install.packages("caret")
+library(caret) 
+
+session=list()
+for(i in 1:18){
+  session[[i]]=readRDS(paste('./Data/session',i,'.rds',sep=''))
+  print(session[[i]]$mouse_name)
+  print(session[[i]]$date_exp)
+}
+```
+```{r}
+# What's in a session?
+names(session[[1]])
+
+# What's in a trail?
+dim(session[[1]]$spks[[1]]) 
+length(session[[12]]$brain_area)
+session[[1]]$spks[[1]][6,] # Each row contains x time bins. 
+
+# How to connect the neuron spike with brain region?
+session[[1]]$spks[[1]][6,3] 
+session[[1]]$brain_area[6]
+
+#The above information tells us in session 1 trail 1, the 6 neuron (from area ACA) has a spike at time bin 3.
+```
+
+Data processing
+```{r}
+get_trail_data <- function(session_id, trail_id){
+  spikes <- session[[session_id]]$spks[[trail_id]]
+  if (any(is.na(spikes))){
+    disp("value missing")
+  }
+
+  #trail_tibble <- as_tibble(spikes) %>% set_names(binename) %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( "sum_spikes" =across(everything(),sum),.groups = "drop") 
+  trail_tibble <- tibble("neuron_spike" = rowSums(spikes))  %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( region_sum_spike = sum(neuron_spike), region_count = n(),region_mean_spike = mean(neuron_spike)) 
+  trail_tibble  = trail_tibble%>% add_column("trail_id" = trail_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trail_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trail_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trail_id])
+  trail_tibble
+}
+
+trail_tibble_1_2 <- get_trail_data(1,2)
+trail_tibble_1_2
+
+#session_1 <- get_session_data(1)
+#head(session_1)
+```
+Five variables are available for each trial, namely 
+
+- `feedback_type`: type of the feedback, 1 for success and -1 for failure
+- `contrast_left`: contrast of the left stimulus
+- `contrast_right`: contrast of the right stimulus
+- `time`: centers of the time bins for `spks`  
+- `spks`: numbers of spikes of neurons in the visual cortex in time bins defined in `time`
+- `brain_area`: area of the brain where each neuron lives
+
+EDA
+*From ChatGPT, created a consolidated data frame that includes session number, mouse name, and date of experiment for each session:
+Goal: to create a data frame that sums the number of neurons, brain area, and average spike rate in each session
+```{r}
+# Load necessary libraries
+library(dplyr)
+
+# Initialize an empty data frame to store session info
+session_info <- data.frame(
+  session_number = integer(),
+  num_neurons = integer(),
+  num_trials = integer(),
+  min_contrast_left = numeric(),
+  max_contrast_left = numeric(),
+  min_contrast_right = numeric(),
+  max_contrast_right = numeric(),
+  num_success_trials = integer(),
+  num_failure_trials = integer(),
+  stringsAsFactors = FALSE # To keep character strings
+)
+
+# Loop through each session, read RDS file, and extract info
+for(i in 1:18){
+  # Construct the file path
+  file_path <- paste0('./Data/session', i, '.rds')
+  
+  # Load the RDS file
+  session_data <- readRDS(file_path)
+  
+  # Extract mouse name and date of experiment
+  mouse_name <- session_data$mouse_name
+  date_exp <- session_data$date_exp
+  num_neurons <- ncol(session_data$spks) # I'm trying to count the number of spikes in each session, but I keep getting an error
+  #num_trials = session_data$num_trials
+  
+  
+  # Append the information to the session_info data frame
+  session_info <- rbind(session_info, data.frame(session_number = i,
+                                                  mouse_name = mouse_name,
+                                                  date_exp = date_exp,
+                                                  num_neurons = num_neurons,
+                                                  #num_trials = num_trials,
+                                                  stringsAsFactors = FALSE))
+}
+
+# View the consolidated data frame
+print(session_info)
+```
+
+# Question of interest
+
+The primary objective of this project is to build a predictive model to predict the outcome (i.e., feedback type) of each trial using the neural activity data (i.e., spike trains in `spks`), along with the stimuli (the left and right contrasts). Given the complexity of the data (and that this is a course project), we break the predictive modeling into three parts as follows. 
+
+Part 1. Exploratory data analysis. In this part, we will explore the features of the data sets in order to build our prediction model. In particular, we would like to (i) describe the data structures across sessions (e.g., number of neurons, number of trials, stimuli conditions, feedback types), (ii) explore the neural activities during each trial, (iii) explore the changes across trials, and (iv) explore homogeneity and heterogeneity across sessions and mice. 
+
+(i) describe the data structures across sessions (e.g., number of neurons, number of trials, stimuli conditions, feedback types)
+
+*From ChatGPT
+```{r }
+# Load necessary libraries
+library(tidyverse)
+
+# Load the data for all sessions
+sessions <- list()
+for(i in 1:18) {
+  sessions[[i]] <- readRDS(paste('./Data/session', i, '.rds', sep=''))
+}
+
+session_summary <- lapply(sessions, function(session) {
+  # Assuming 'spks' is a matrix with one column per neuron
+  num_neurons <- if("spks" %in% names(session)) ncol(session$spks) else NA
+  
+  data.frame(
+    Session = session$date_exp[1], 
+    Neurons = num_neurons,
+    Trials = nrow(session),
+    Unique_Contrasts_Left = length(unique(session$contrast_left)),
+    Unique_Contrasts_Right = length(unique(session$contrast_right)),
+    Feedback_Types = length(unique(session$feedback_type))
+  )
+})
+
+# Part 1: Exploratory Data Analysis
+
+# Describe data structures across sessions
+# Number of neurons, trials, stimuli conditions, and feedback types
+session_summary <- lapply(sessions, function(session) {
+  data.frame(
+    Session = session$date_exp[1], 
+    Neurons = length(unique(session$brain_area)),
+    Spikes = length(unique(session$spks)),
+    Trials = nrow(session),
+    Unique_Contrasts_Left = length(unique(session$contrast_left)),
+    Unique_Contrasts_Right = length(unique(session$contrast_right)),
+    Feedback_Types = length(unique(session$feedback_type))
+  )
+})
+```
+
+```{r }
+# Initialize a data frame to store the summary information for each session
+session_summary_df <- data.frame(
+  session_number = integer(),
+  num_neurons = integer(),
+  num_trials = integer(),
+  min_contrast_left = numeric(),
+  max_contrast_left = numeric(),
+  min_contrast_right = numeric(),
+  max_contrast_right = numeric(),
+  num_success_trials = integer(),
+  num_failure_trials = integer(),
+  stringsAsFactors = FALSE # Avoid converting strings to factors
+)
+
+# Loop over each session to extract and summarize information
+for(i in 1:18) {
+  # Assuming the session list has been correctly populated
+  current_session <- session[[i]]
+  
+  # Number of neurons: Assuming the 'spks' matrix's columns represent individual neurons
+  num_neurons <- ncol(current_session$spks)
+  
+  # Number of trials: Number of rows in the 'spks' matrix
+  num_trials <- nrow(current_session$spks)
+  
+  # Stimuli conditions
+  min_contrast_left <- min(current_session$contrast_left, na.rm = TRUE)
+  max_contrast_left <- max(current_session$contrast_left, na.rm = TRUE)
+  min_contrast_right <- min(current_session$contrast_right, na.rm = TRUE)
+  max_contrast_right <- max(current_session$contrast_right, na.rm = TRUE)
+  
+  # Feedback types
+  num_success_trials <- sum(current_session$feedback_type == 1, na.rm = TRUE)
+  num_failure_trials <- sum(current_session$feedback_type == -1, na.rm = TRUE)
+  
+  # Append the summary for the current session to the data frame
+  session_summary_df <- rbind(session_summary_df, data.frame(
+    session_number = i,
+    number_neurons = num_neurons,
+    number_trials = num_trials,
+    min_contrast_left = min_contrast_left,
+    max_contrast_left = max_contrast_left,
+    min_contrast_right = min_contrast_right,
+    max_contrast_right = max_contrast_right,
+    num_success_trials = num_success_trials,
+    num_failure_trials = num_failure_trials
+  ))
+}
+
+# Print or view the consolidated session summary
+print(session_summary_df)
+```
+
+(ii) explore the neural activities during each trial
+
+(iii) explore the changes across trials
+
+(iv) explore homogeneity and heterogeneity across sessions and mice
+
+Part 2. Data integration. Using the findings in Part 1, we will propose an approach to combine data across trials by (i) extracting the shared patters across sessions and/or (ii) addressing the differences between sessions. The goal of this part is to enable the borrowing of information across sessions to enhance the prediction performance in Part 3. 
+
+(i) extracting the shared patters across sessions and/or 
+
+(ii) addressing the differences between sessions. The goal of this part is to enable the borrowing of information across sessions to enhance the prediction performance in Part 3. 
+
+Part 3. Model training and prediction. Finally, we will build a prediction model to predict the outcome (i.e., feedback types). The performance will be evaluated on two test sets of 100 trials randomly selected from Session 1 and Session 18, respectively. The test sets will be released on the day of submission when you need to evaluate the performance of your model. 
+
+# Project report outline 
+
+The final submission of the course project is a report in HTML format, along with a link to the Github repository that can be used to reproduce your report. The project report must be legible and the exposition of the report is part of the grading rubrics. For consistency in grading, please follow the outline listed below. 
+
+- Title.
+
+- Abstract (5 pts).
+
+- Section 1 Introduction (10 pts). 
+
+- Section 2 Exploratory analysis (15 pts). 
+
+- Section 3 Data integration (15 pts). 
+
+- Section 4 Predictive modeling (15 pts). 
+
+- Section 5 Prediction performance on the test sets (10 pts). 
+
+- Section 6 Discussion (10 pts). 
+
+In addition, the remaining 20 points will be allocated to report organization and legibility and creativity and originality. 
+
+**Remark**: One important thing to note is that a course project is not an exam where questions on the exam are kept confidential. Instead, the instructor and TAs are more than happy to share with you our thoughts on how to improve your projects before you submit them. From a practical perspective, it is more rewarding to solicit advice and suggestions before we grade your reports than to wait for feedback afterwards. That said, we understand that you may have other courses and obligations that are more important than this course. Therefore, all submissions and attendance are optional except for the final project report due on June 12th.
+
+# Reference {-}
+
+Steinmetz, N.A., Zatka-Haas, P., Carandini, M. et al. Distributed coding of choice, action and engagement across the mouse brain. Nature 576, 266–273 (2019). https://doi.org/10.1038/s41586-019-1787-x

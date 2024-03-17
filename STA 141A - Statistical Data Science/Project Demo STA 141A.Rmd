@@ -1,0 +1,498 @@
+---
+title: "Course Project Demo"
+author: Jue Wang
+date: " "
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyverse)
+library(caret) 
+library(xgboost)
+library(pROC)
+
+```
+
+# Overview
+
+Try not to print raw R outputs but make the result as in **a clean and readable report**.   
+
+Lots of the figures in the file serve as exploration of the data. Try not to include the same figures from this demonstration file in your own report. Think about how to plot the figures **more concisely**. If you decide to include some of the figures/tables from this file, please include detailed explanation of the figures/tables and **what is your find out** from the figures/tables.
+
+
+# Data structure 
+
+---
+
+A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
+
+```{r echo=TRUE, eval=TRUE}
+
+session=list()
+for(i in 1:18){
+  session[[i]]=readRDS(paste('./Data/session',i,'.rds',sep=''))
+  print(session[[i]]$mouse_name)
+  
+  print(session[[i]]$date_exp)
+  
+}
+```
+## What's in a session?  
+```{r}
+names(session[[1]])
+```
+## What's in a trail?
+```{r}
+dim(session[[1]]$spks[[1]]) 
+length(session[[1]]$brain_area)
+session[[1]]$spks[[1]][6,] # Each row contains 40 time bins. 
+```
+## How to connect the neuron spike with brain region?
+```{r}
+session[[1]]$spks[[1]][6,3] 
+session[[1]]$brain_area[6]
+```
+
+The above information tells us in session 1 trail 1, the 6 neuron (from area ACA) has a spike at time bin 3. 
+
+# Data processing 
+
+I denote the ``spike rate`` per neuron as the sum of spikes over the 40 time bins. 
+The ``region_mean_spike`` records the average of spike rate over each region. 
+
+```{r}
+get_trail_data <- function(session_id, trail_id){
+  spikes <- session[[session_id]]$spks[[trail_id]]
+  if (any(is.na(spikes))){
+    disp("value missing")
+  }
+
+  #trail_tibble <- as_tibble(spikes) %>% set_names(binename) %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( "sum_spikes" =across(everything(),sum),.groups = "drop") 
+  trail_tibble <- tibble("neuron_spike" = rowSums(spikes))  %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( region_sum_spike = sum(neuron_spike), region_count = n(),region_mean_spike = mean(neuron_spike)) 
+  trail_tibble  = trail_tibble%>% add_column("trail_id" = trail_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trail_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trail_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trail_id])
+  trail_tibble
+}
+
+```
+
+
+
+```{r}
+trail_tibble_1_2 <- get_trail_data(1,2)
+trail_tibble_1_2
+```
+```{r,echo=FALSE}
+
+get_session_data <- function(session_id){
+  n_trail <- length(session[[session_id]]$spks)
+  trail_list <- list()
+  for (trail_id in 1:n_trail){
+    trail_tibble <- get_trail_data(session_id,trail_id)
+    trail_list[[trail_id]] <- trail_tibble
+  }
+  session_tibble <- do.call(rbind, trail_list)
+  session_tibble <- session_tibble %>% add_column("mouse_name" = session[[session_id]]$mouse_name) %>% add_column("date_exp" = session[[session_id]]$date_exp) %>% add_column("session_id" = session_id) 
+  session_tibble
+}
+
+```
+```{r}
+session_1 <- get_session_data(1)
+head(session_1)
+```
+
+```{r,echo=FALSE}
+session_list = list()
+for (session_id in 1: 18){
+  session_list[[session_id]] <- get_session_data(session_id)
+}
+full_tibble <- do.call(rbind, session_list)
+full_tibble$success <- full_tibble$feedback_type == 1
+full_tibble$success <- as.numeric(full_tibble$success)
+full_tibble$contrast_diff <- abs(full_tibble$contrast_left-full_tibble$contrast_right)
+f
+```
+
+Here is another way of data processing. For each trail, I take the average of neuron spikes over each time bin. I denote it as ``trail_bin_average``
+
+```{r,echo=FALSE}
+binename <- paste0("bin", as.character(1:40))
+
+get_trail_functional_data <- function(session_id, trail_id){
+  spikes <- session[[session_id]]$spks[[trail_id]]
+  if (any(is.na(spikes))){
+    disp("value missing")
+  }
+
+  trail_bin_average <- matrix(colMeans(spikes), nrow = 1)
+  colnames(trail_bin_average) <- binename
+  trail_tibble  = as_tibble(trail_bin_average)%>% add_column("trail_id" = trail_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trail_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trail_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trail_id])
+  
+  trail_tibble
+}
+get_session_functional_data <- function(session_id){
+  n_trail <- length(session[[session_id]]$spks)
+  trail_list <- list()
+  for (trail_id in 1:n_trail){
+    trail_tibble <- get_trail_functional_data(session_id,trail_id)
+    trail_list[[trail_id]] <- trail_tibble
+  }
+  session_tibble <- as_tibble(do.call(rbind, trail_list))
+  session_tibble <- session_tibble %>% add_column("mouse_name" = session[[session_id]]$mouse_name) %>% add_column("date_exp" = session[[session_id]]$date_exp) %>% add_column("session_id" = session_id) 
+  session_tibble
+}
+
+```
+```{r, echo = FALSE}
+session_list = list()
+for (session_id in 1: 18){
+  session_list[[session_id]] <- get_session_functional_data(session_id)
+}
+full_functional_tibble <- as_tibble(do.call(rbind, session_list))
+full_functional_tibble$session_id <- as.factor(full_functional_tibble$session_id )
+full_functional_tibble$contrast_diff <- abs(full_functional_tibble$contrast_left-full_functional_tibble$contrast_right)
+
+full_functional_tibble$success <- full_functional_tibble$feedback_type == 1
+full_functional_tibble$success <- as.numeric(full_functional_tibble$success)
+```
+
+In the following table, each row contains information of a particular trail. The columns contains the average spike rate for each time bin.
+
+```{r,echo=FALSE}
+head(full_functional_tibble)
+```
+
+
+# EDA
+**Goal of EDA**: 
+
+0. Final task is to predict the results of random trails from session 1 and session 18. 
+
+1. What are some interesting patterns of the data, especially the similarity and difference among different observations (trails). This will answer the question of how to select our training samples. 
+2. What patterns make a trail more likely to have a successful respinse. This will answer the question of how to build our training features.
+
+## What is different for each session/mouse
+### What are the number of neuron's in each session?
+```{r, echo=FALSE}
+full_tibble %>% filter (trail_id==1) %>% group_by(session_id) %>% summarise(sum(region_count))
+```
+### What is the number brain area of each session
+```{r, echo=FALSE}
+full_tibble %>% group_by(session_id) %>% summarise(unique_area = n_distinct(brain_area))
+```
+
+### What is the average spike rate over each session 
+```{r, echo=FALSE}
+average_spike <-full_tibble %>% group_by( session_id, trail_id) %>% mutate(mean_spike = sum(region_sum_spike)/sum(region_count))
+average_spike %>% group_by(session_id) %>% summarise(mean_session_spike = mean(mean_spike))
+```
+
+### What are the brain areas with neurons recorded in each session?
+
+```{r,echo=FALSE}
+ggplot(full_tibble, aes(x =session_id , y = brain_area)) +
+  geom_point() +
+  labs(x = "session_id" , y ="brain_area") +
+  scale_x_continuous(breaks = unique(full_tibble$session_id)) +  
+  theme_minimal()
+```
+
+### Estimate success rate over different groups (session and mouse)
+
+```{r,echo=FALSE}
+full_functional_tibble %>% group_by(session_id) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+```
+```{r,echo=FALSE}
+full_functional_tibble %>% group_by(mouse_name) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+```
+
+
+## What is different among each trail?
+
+### What is the contrast difference distribution?
+```{r,echo=FALSE}
+full_functional_tibble %>% group_by(contrast_diff) %>% count() %>% 
+  ungroup() %>% 
+  mutate(perc = `n` / sum(`n`)) %>% 
+  arrange(perc) %>%
+  mutate(labels = scales::percent(perc))
+```
+
+### How does the contrast difference affect the success rate?
+```{r,echo=FALSE}
+full_functional_tibble %>% group_by(contrast_diff) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+```
+
+### Does the success rate difference among mice caused by the different distributions of contrast difference? 
+
+```{r,echo=FALSE}
+counts_df <- full_functional_tibble[c('mouse_name', 'contrast_diff')]
+counts_df$contrast_diff <- as.factor(counts_df$contrast_diff)
+counts <- table(counts_df)
+
+percentages <- prop.table(counts, margin = 1)
+percentages
+
+```
+
+Can you use two-way ANOVA to answer the above question more rigorously? 
+
+
+
+
+### Visualize success rate change over time (trail)
+The success rate is binned for each 25 trails.
+```{r,echo=FALSE}
+full_functional_tibble$trail_group = cut(full_functional_tibble$trail_id, breaks = seq(0, max(full_functional_tibble$trail_id), by = 25),include.lowest = TRUE)
+levels(full_functional_tibble$trail_group) <- seq(0, max(full_functional_tibble$trail_id), by = 25)[2:18]
+```
+
+The success rate change over time for individual sessions:
+
+```{r,echo=FALSE}
+success_rate <- aggregate(success ~ session_id + trail_group, data = full_functional_tibble, FUN = function(x) mean(x) )
+ggplot(success_rate, aes(x = trail_group, y = success)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~session_id, ncol=3) +
+      theme_bw()
+
+```
+
+The success rate change over time for individual mouse:
+
+```{r,echo=FALSE}
+success_rate <- aggregate(success ~ mouse_name + trail_group, data = full_functional_tibble, FUN = function(x) mean(x) )
+ggplot(success_rate, aes(x = trail_group, y = success)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~mouse_name) +
+      theme_bw()
+```
+
+
+### Visualize the change of overall neuron spike rate over time
+
+The ``average_spike`` is the number of spikes within each number bin divided total number of neurons for each trail.
+
+```{r,echo=FALSE}
+col_names <-names(full_functional_tibble)
+region_sum_subset <- col_names[grep("^region_sum", col_names)]
+region_mean_subset <- col_names[grep("^region_mean", col_names)]
+
+```
+```{r,echo=FALSE}
+# average_spike <- full_tibble %>% group_by( session_id,trail_id) %>% summarise(mean_spike = mean(region_mean_spike))
+average_spike <- full_tibble %>% group_by( session_id,trail_id) %>% summarise(mean_spike = sum(region_sum_spike)/sum(region_count))
+
+average_spike$mouse_name <- full_functional_tibble$mouse_name
+average_spike$contrast_diff <- full_functional_tibble$contrast_diff
+average_spike$success <- full_functional_tibble$success
+```
+
+The change of overall neuron spike rate for each session 
+
+```{r,echo=FALSE}
+ggplot(average_spike, aes(x = trail_id, y = mean_spike)) + 
+  geom_line()+
+  geom_smooth(method = "loess")+  # Fit a smooth spline
+
+  facet_wrap(~session_id)
+```
+
+The change of overall neuron spike rate for each mouse 
+
+```{r,echo=FALSE}
+ggplot(average_spike, aes(x = trail_id, y = mean_spike)) + 
+  geom_line()+
+  geom_smooth(method = "loess")+  # Fit a smooth spline
+
+  facet_wrap(~mouse_name)
+```
+
+# Dimension Reduction through PCA
+
+
+We perform PCA and visualize the 2D results. 
+
+```{r, echo = FALSE}
+features = full_functional_tibble[,1:40]
+scaled_features <- scale(features)
+pca_result <- prcomp(scaled_features)
+pc_df <- as.data.frame(pca_result$x)
+pc_df$session_id <- full_functional_tibble$session_id
+pc_df$mouse_name <- full_functional_tibble$mouse_name
+```
+
+The dots are colored for different session. 
+
+```{r, echo = FALSE}
+ggplot(pc_df, aes(x = PC1, y = PC2, color = session_id)) +
+  geom_point() +
+  labs(title = "PCA: PC1 vs PC2")
+```
+
+The dots are colored for different mouse 
+```{r, echo = FALSE}
+ggplot(pc_df, aes(x = PC1, y = PC2, color = mouse_name)) +
+  geom_point() +
+  labs(title = "PCA: PC1 vs PC2")
+```
+
+What can be found through these two plots? 
+
+# Data Integration
+I decide to use trails from all sessions first and see the performance. The feature I decide to use are session_id, trail_id, signals, and the average spike rate of each time bin.
+
+
+```{r}
+predictive_feature <- c("session_id","trail_id","contrast_right","contrast_left", "contrast_diff" ,binename)
+head(full_functional_tibble[predictive_feature])
+```
+```{r,echo=FALSE}
+predictive_dat <- full_functional_tibble[predictive_feature]
+#predictive_dat$success <- as.numeric(predictive_dat$success)
+predictive_dat$trail_id <- as.numeric(predictive_dat$trail_id)
+label <- as.numeric(full_functional_tibble$success)
+X <- model.matrix(~., predictive_dat)
+
+```
+
+# Prediction
+## train the model on 80% trails and test it on the rest 
+
+```{r}
+# split
+set.seed(123) # for reproducibility
+trainIndex <- createDataPartition(label, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+train_df <- predictive_dat[trainIndex, ]
+train_X <- X[trainIndex,]
+test_df <- predictive_dat[-trainIndex, ]
+test_X <- X[-trainIndex,]
+
+train_label <- label[trainIndex]
+test_label <- label[-trainIndex]
+```
+
+I decide to go with xgboost because I have lots of features, I expect there are some interactions among those interactions, and I have a relative large training set to avoid overfitting. 
+
+```{r}
+
+xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
+
+```
+
+Prediction results (accuracy, confusion matrix, AUROC)
+```{r}
+predictions <- predict(xgb_model, newdata = test_X)
+predicted_labels <- as.numeric(ifelse(predictions > 0.5, 1, 0))
+accuracy <- mean(predicted_labels == test_label)
+accuracy
+
+```
+```{r}
+conf_matrix <- confusionMatrix(as.factor(predicted_labels), as.factor(test_label))
+conf_matrix$table
+
+```
+```{r}
+auroc <- roc(test_label, predictions)
+auroc
+```
+
+## test the model's performance on 50 random trails from session 18
+```{r}
+# split
+set.seed(123) # for reproducibility
+session_18_row <- which(full_functional_tibble$session_id==18)
+testIndex <- sample(session_18_row, 50, replace = FALSE)
+trainIndex <- 1:nrow(full_functional_tibble)
+trainIndex <- trainIndex[!(trainIndex %in% testIndex)]
+
+train_df <- predictive_dat[trainIndex, ]
+train_X <- X[trainIndex,]
+test_df <- predictive_dat[-trainIndex, ]
+test_X <- X[-trainIndex,]
+
+train_label <- label[trainIndex]
+test_label <- label[-trainIndex]
+```
+
+Prediction results (accuracy, confusion matrix, AUROC)
+
+```{r}
+xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
+predictions <- predict(xgb_model, newdata = test_X)
+predicted_labels <- as.numeric(ifelse(predictions > 0.5, 1, 0))
+accuracy <- mean(predicted_labels == test_label)
+accuracy
+conf_matrix <- confusionMatrix(as.factor(predicted_labels), as.factor(test_label))
+conf_matrix$table
+auroc <- roc(test_label, predictions)
+auroc
+```
+
+## test the model's performance on 50 random trails from session 1
+```{r,echo=FALSE}
+# split
+set.seed(123) # for reproducibility
+session_1_row <- which(full_functional_tibble$session_id==1)
+testIndex <- sample(session_1_row, 50, replace = FALSE)
+trainIndex <- 1:nrow(full_functional_tibble)
+trainIndex <- trainIndex[!(trainIndex %in% testIndex)]
+
+train_df <- predictive_dat[trainIndex, ]
+train_X <- X[trainIndex,]
+test_df <- predictive_dat[-trainIndex, ]
+test_X <- X[-trainIndex,]
+
+train_label <- label[trainIndex]
+test_label <- label[-trainIndex]
+```
+
+Prediction results (accuracy, confusion matrix, AUROC)
+
+```{r,echo=FALSE}
+xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
+predictions <- predict(xgb_model, newdata = test_X)
+predicted_labels <- as.numeric(ifelse(predictions > 0.5, 1, 0))
+accuracy <- mean(predicted_labels == test_label)
+accuracy
+conf_matrix <- confusionMatrix(as.factor(predicted_labels), as.factor(test_label))
+conf_matrix$table
+auroc <- roc(test_label, predictions)
+auroc
+```
+
+
+
+
+
+
+
+
+
+
+
+# Project milestones
+
+A series of milestones are set throughout the quarter in order to encourage, and reward, early starts on the course project. Furthermore, there are several project discussion sessions throughout the quarter for students to utilize. 
+
+
+- Project proposal January 26th (optional): 0 points. Students are **strongly recommended** to attend the project discussion during the regular lecture time on Zoom. 
+- Milestone I February 9th  (optional): 0 points but eligible for bonus points for outstanding progress or novel findings. Draft analysis and results for Part I visualization. Students are **recommended** to attend the optional project discussion during the regular lecture time on Zoom. 
+- Milestone II March 1st (optional): 0 points but eligible for bonus points for outstanding progress or novel findings. Draft analysis and results for Part II data integration. Students are **recommended** to attend the optional project discussion during the regular lecture time on Zoom. 
+- March 18th Project report: 60 points. Students are **strongly recommended** to attend at least one project consulting session in Week 10. 
+
+
+**Remark**: One important thing to note is that a course project is not an exam where questions on the exam are kept confidential. Instead, the instructor and TAs are more than happy to share with you our thoughts on how to improve your projects before you submit them. From a practical perspective, it is more rewarding to solicit advice and suggestions before we grade your reports than to wait for feedback afterwards. That said, we understand that you may have other courses and obligations that are more important than this course. Therefore, all submissions and attendance are optional except for the final project report due on June 12th.
+
+# Reference {-}
+
+
+Steinmetz, N.A., Zatka-Haas, P., Carandini, M. et al. Distributed coding of choice, action and engagement across the mouse brain. Nature 576, 266–273 (2019). https://doi.org/10.1038/s41586-019-1787-x
+
+
