@@ -4,7 +4,7 @@ author: "Kyle Guanzon SID: 916279239"
 output: html_document
 ---
 ***
-
+hi this is sonial testing git
 **Instructions** You may adapt the code in the course materials or any sources (e.g., the Internet, classmates, friends, generative AI). In fact, you can craft solutions for almost all questions from the course materials with minor modifications. However, you need to write up your own solutions and acknowledge all sources that you have cited in the Acknowledgement section. 
 
 Failing to acknowledge any non-original efforts will be counted as plagiarism. This incidence will be reported to the Student Judicial Affairs. 
