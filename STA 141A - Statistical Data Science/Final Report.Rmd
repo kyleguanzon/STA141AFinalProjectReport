@@ -48,23 +48,36 @@ library(pROC) # To create citations
 The activity of the neurons in the mice's visual cortex was recorded during the trials and made available in the form of spike trains, which are collections of timestamps corresponding to neuron firing. In this project, we focus specifically on the spike trains of neurons from the onset of the stimuli to 0.4 seconds post-onset. In addition, we only use 18 sessions (Sessions 1 to 18) from four mice: Cori, Frossman, Hence, and Lederberg.
 
 ## Data Structure 
-
-  To understand the data's structure, we are going to randomly explore one of the 18 sessions. 
-  
-  Starting the EDA with a single session before moving to the entire dataset is a strategic decision that helps in understanding the data better, refining your analysis techniques, ensuring computational efficiency, and establishing a baseline for further comparative analyses. This approach not only enhances the quality of the data analysis but also contributes to a more coherent and comprehensive understanding of the data as a whole. (ChatGPT)
   
   A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
 
-There are a total of 18 RDS files provided that contain the records from 18 sessions. Each file contains the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
-
+ There are a total of 18 RDS files provided that contain the records from 18 sessions. Each file contains the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
+ 
+ From the research paper, we also know that there are x trials in a given session. We will use this information to determine the total number of trials per session.
+ 
 *From ChatGPT, we then create a consolidated data frame that includes session number, mouse name, and date of experiment for each session, as a RDS file overview:
 ```{r echo=FALSE}
-# Load necessary libraries
-library(dplyr)
+# Code provided
+session=list()
+for(i in 1:18){
+  session[[i]]=readRDS(paste('./Data/session',i,'.rds',sep=''))
+}
+
+# From ChatGPT
+# Initialize a vector to store the number of trials in each session
+number_of_trials_per_session <- integer(length(session))
+
+# Loop through each session to count the trials
+for (i in seq_along(session)) {
+  # Count the number of trials in the ith session
+  # Assuming trials are stored in a list or a similar structure
+  number_of_trials_per_session[i] <- length(session[[i]]$spks)
+}
 
 # Initialize an empty data frame to store session info
 session_info <- data.frame(session_number = integer(),
                            mouse_name = character(),
+                           tial_count = integer(),
                            date_exp = character(),
                            stringsAsFactors = FALSE) # To keep character strings
 
@@ -80,90 +93,38 @@ for(i in 1:18){
   mouse_name <- session_data$mouse_name
   date_exp <- session_data$date_exp
   
+  # Count the number of trials in the session
+  trial_count <- length(session_data$spks)
+  
   # Append the information to the session_info data frame
   session_info <- rbind(session_info, data.frame(session_number = i,
                                                   mouse_name = mouse_name,
                                                   date_exp = date_exp,
+                                                  trial_count = trial_count,
                                                   stringsAsFactors = FALSE))
 }
 
 # View the consolidated data frame
 print(session_info)
 ```
-From the dataset, we can see that there are 18 sessions, where Sessions 1-3 have the mouse_name = Cori, Sessions 4-7 have mouse_name Forssmann, Sessions 8-11 have the mouse_name Hench, and Sessions 13-18 have mouse_name Lederberg, respectively.
+  From the dataset, we can see that there are 18 sessions, where Sessions 1-3 have the `mouse_name` = Cori, Sessions 4-7 have `mouse_name` Forssmann, Sessions 8-11 have the `mouse_name` Hench, and Sessions 13-18 have `mouse_name` Lederberg, respectively.
 
-We then, now, explore what's in a session by randomly exploring a session from Session 1-18, before we explore the rest of the 18 sessions. 
+  We then, now, explore what's in a session by randomly exploring a session from Session 1-18, before we explore the rest of the 18 sessions. 
+  
+  Starting the EDA with a single session before moving to the entire dataset is a strategic decision that helps in understanding the data better, refining your analysis techniques, ensuring computational efficiency, and establishing a baseline for further comparative analyses. This approach not only enhances the quality of the data analysis but also contributes to a more coherent and comprehensive understanding of the data as a whole. (ChatGPT)
 
+### What's in a Session's Trial?
 
-## What's in a session?  
-```{r}
-# Code provided
-session=list()
-for(i in 1:18){
-  session[[i]]=readRDS(paste('./Data/session',i,'.rds',sep=''))
-  #print(session[[i]]$mouse_name)
-  #print(session[[i]]$date_exp)
-}
+We randomly choose Session 12 to understand the data structure. 
 
-# Prints out variables in Session 1
-#names(session[[1]])
-
-# Prints out variables in Session 18
-#names(session[[18]])
-
-# Prints out variables in Session 13
-#names(session[[13]])
-
-
-#names(session[[1]])
-
-summary(session[[1]]$brain_area)
-
-#table(session[[1]]$brain_area)
-
+```{r include=FALSE}
+names(session[[12]]) # Prints out variables present in Session 12
 ```
 
-```{r}
-# Behavioural data
 
-summary(session[[1]]$contrast_left) # Summary statistics of 
-#table(session[[1]]$contrast_left) #  frequency of trials that were conducted with each specific level of left stimulus contrast in Session 1.
-#length(session[[1]]$contrast_left) # total number of trials for contrast_left in Session 1
-
-#table(session[[1]]$contrast_right)
-#length(session[[1]]$contrast_right)
-
-
-#summary(session[[1]]$feedback_type)
-#table(session[[1]]$feedback_type)
+```{r echo=FALSE}
+summary(session[[12]]) # Prints out variables in Session 12 and its total length for each variable
 ```
-
-```{r}
-# Neural data
-
-typeof(session[[1]]$spks)
-
-length(session[[1]]$spks)
-
-dim(session[[1]]$spks[[10]]) # the number of neurons (734) by the number of time bins (40)
-
-length(session[[1]]$spks[[10]][5,])
-
-
-typeof(session[[1]]$time)
-session[[1]]$time[[10]]
-
-session[[1]]$feedback_type[10]
-
-
-session[[1]]$contrast_left[10]
-
-session[[1]]$contrast_right[10]
-
-
-# session[[1]]$spks[[10]] ----  session[[1]]$feedback_type[10]
-```
-
 Five variables are available for each trial, namely 
 
 - `feedback_type`: type of the feedback, 1 for success and -1 for failure
@@ -173,118 +134,161 @@ Five variables are available for each trial, namely
 - `spks`: numbers of spikes of neurons in the visual cortex in time bins defined in `time`
 - `brain_area`: area of the brain where each neuron lives
 
-## What's in a trial?
-```{r}
-# Assuming 'sessions' is a list of sessions
-# Each session contains trials and other information as described
+### Neural Data 
 
-# Initialize a vector to store the number of trials in each session
-number_of_trials_per_session <- integer(length(session))
+We browse through Neural Data by exploring the variables brain_area and spks of Session 12. 
+```{r echo=FALSE}
+summary(session[[12]]$brain_area) #summary() usually returns a frequency count of the different categories or levels present in the column.
+```
+There are a total of `r length(session[[12]]$brain_area)` neurons in Session 12. Each entry corresponds to a neuron, indicating the brain area where that neuron is located. We also obtain the total number of trials from the `length()` of spks, which is `r length(session[[12]]$spks)`.
 
-# Loop through each session to count the trials
-for (i in seq_along(session)) {
-  # Count the number of trials in the ith session
-  # Assuming trials are stored in a list or a similar structure
-  number_of_trials_per_session[i] <- length(session[[i]]$spks)
-}
+The distribution of neurons with their corresponding brain areas is illustrated below:
+```{r echo=FALSE}
+table(session[[12]]$brain_area) 
+```
+This means that of all `r length(session[[12]]$spks)` trials in Session 12, the `r length(session[[12]]$brain_area)` neurons are distributed with their corresponding brain areas.
 
-# Print the number of trials in each session
-print(number_of_trials_per_session)
+```{r include=FALSE}
+#We then, further look at Session 12, Trial 1. Using the code, `dim(session[[12]]$spks[[1]])`, we obtain the dimension result:
+dim(session[[12]]$spks[[1]])
+#From the result, we can see that 698 neurons were recorded over 40 time bins in Session 12.
 
-library(dplyr)
+session[[12]]$spks[[1]][6,] # Each row contains 40 time bins. 
 
-# Initialize an empty data frame to store session info and trial counts
-session_info_trials <- data.frame(session_number = integer(),
-                                  mouse_name = character(),
-                                  trial_count = integer(),
-                                  stringsAsFactors = FALSE) # To keep character strings
+# We connect the neuron spike with brain region
+session[[12]]$spks[[1]][6,] 
 
-# Loop through each session, read RDS file, extract info, and count trials
-for(i in 1:18){
-  # Construct the file path
-  file_path <- paste0('./Data/session', i, '.rds')
-  
-  # Load the RDS file
-  session_data <- readRDS(file_path)
-  
-  # Extract mouse name and date of experiment
-  mouse_name <- session_data$mouse_name
-  
-  # Count the number of trials in the session
-  trial_count <- length(session_data$spks)
-  
-  # Append the information to the session_info_trials data frame
-  session_info_trials <- rbind(session_info_trials, data.frame(session_number = i,
-                                                                mouse_name = mouse_name,
-                                                                trial_count = trial_count,
-                                                                stringsAsFactors = FALSE))
-}
+session[[12]]$brain_area[6]
 
-# View the consolidated data frame with trial counts
-print(session_info_trials)
-
-
-dim(session[[1]]$spks[[1]]) 
-length(session[[1]]$brain_area)
-session[[1]]$spks[[1]][6,] # Each row contains 40 time bins. 
+# The above information tells us in session 12 trial 1, the 6 neuron (from area VISp) does not have a spike at time bin 6. 
 ```
 
-## How to connect the neuron spike with brain region?
-```{r}
-session[[1]]$spks[[1]][6,3] 
-session[[1]]$brain_area[6]
+```{r include=FALSE}
+# Neural data
+length(session[[12]]$spks)
+
+dim(session[[12]]$spks[[10]]) # the number of neurons (734) by the number of time bins (40) in session 12, trial # 10
+
+length(session[[12]]$spks[[10]][5,])
+
+
+typeof(session[[12]]$time)
+session[[12]]$time[[10]]
+
+session[[12]]$feedback_type[10]
+
+
+session[[12]]$contrast_left[10]
+
+session[[12]]$contrast_right[10]
+
+# session[[1]]$spks[[10]] ----  session[[1]]$feedback_type[10]
 ```
 
-The above information tells us in session 1 trail 1, the 6 neuron (from area ACA) has a spike at time bin 3. 
+### Behavioral Data 
 
-# Data processing 
+We browse through Behavioral Data by exploring the variables `contrast_left`, `contrast_right`, and `feedback_type` of Session 12. 
+
+The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus.
+
+```{r include=FALSE}
+# Behavioural data
+summary(session[[12]]$contrast_left) # Summary statistics of Session 12's contrast_left
+```
+
+Taking the summary statistics of `contrast_left` of Session 12, we can see that the average stimulus provided to the mouse is `r mean(session[[12]]$contrast_left)`, the highest stimulus is `r max(session[[12]]$contrast_left)`, whereas the lowest stimulus value given is `r min(session[[12]]$contrast_left)`.
+
+The distribution of the four stimulus levels in left contrast is provided below, which sums up to the total number of trials in `contrast_left` for Session 12, which is `r length(session[[12]]$contrast_left)`.
+
+```{r echo=FALSE}
+table(session[[12]]$contrast_left) #  frequency of trials that were conducted with each specific level of left stimulus contrast in Session 1.
+```
+
+We also explore similarly for `contrast_right`:
+
+```{r include=FALSE}
+summary(session[[12]]$contrast_right)
+```
+Taking the summary statistics of contrast_right of Session 12, we can see that the average stimulus provided to the mouse is `r mean(session[[12]]$contrast_right)`, the highest stimulus is `r max(session[[12]]$contrast_right)`, whereas the lowest stimulus value given is `r min(session[[12]]$contrast_right)`.
+
+The distribution of the four stimulus levels in left contrast is provided below, which sums up to the total number of trials in `contrast_right` for Session 12, which is `r length(session[[12]]$contrast_right)`.
+
+```{r echo=TRUE}
+table(session[[12]]$contrast_right)
+```
+
+Subsequently, we explore the success and failures of Session 1 trials through the variable `feedback_type`.
+```{r include=FALSE}
+summary(session[[12]]$feedback_type)
+```
+
+Taking the summary statistics of `feedback_type` of Session 12, we can see that the average stimulus provided to the mouse is `r mean(session[[12]]$feedback_type)`, the highest stimulus is `r max(session[[12]]$feedback_type)`, whereas the lowest stimulus value given is `r min(session[[12]]$feedback_type)`.
+
+The distribution two feedback levels in Session 12 is provided below, which sums up to the total number of trials in for Session 12, which is `r length(session[[12]]$feedback_type)`.
+```{r echo=FALSE}
+table(session[[12]]$feedback_type)
+```
+
+## Data Processing
+
+Going over the data strutcure of Session 12, we now are equipped to transform and integrate the data into something meaningful. 
 
 I denote the ``spike rate`` per neuron as the sum of spikes over the 40 time bins. 
 The ``region_mean_spike`` records the average of spike rate over each region. 
 
-```{r}
-get_trail_data <- function(session_id, trail_id){
-  spikes <- session[[session_id]]$spks[[trail_id]]
+```{r include=FALSE}
+#trial ID is trial number
+get_trial_data <- function(session_id, trial_id){
+  spikes <- session[[session_id]]$spks[[trial_id]]
   if (any(is.na(spikes))){
     disp("value missing")
   }
 
-  #trail_tibble <- as_tibble(spikes) %>% set_names(binename) %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( "sum_spikes" =across(everything(),sum),.groups = "drop") 
-  trail_tibble <- tibble("neuron_spike" = rowSums(spikes))  %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( region_sum_spike = sum(neuron_spike), region_count = n(),region_mean_spike = mean(neuron_spike)) 
-  trail_tibble  = trail_tibble%>% add_column("trail_id" = trail_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trail_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trail_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trail_id])
-  trail_tibble
+  #trial_tibble <- as_tibble(spikes) %>% set_names(binename) %>%  add_column("brain_area" = session[[session_id]]$brain_area ) %>% group_by(brain_area) %>% summarize( "sum_spikes" =across(everything(),sum),.groups = "drop") 
+  
+  trial_tibble <- tibble("neuron_spike" = rowSums(spikes, na.rm=TRUE))  %>%
+    add_column("brain_area" = session[[session_id]]$brain_area ) %>% 
+    group_by(brain_area) %>% 
+    summarize( region_sum_spike = sum(neuron_spike), 
+               region_count = n(),
+               region_mean_spike = mean(neuron_spike)) 
+  
+  trial_tibble  = trial_tibble %>% 
+    add_column("trial_id" = trial_id) %>% 
+    add_column("contrast_left"= session[[session_id]]$contrast_left[trial_id]) %>%
+    add_column("contrast_right"= session[[session_id]]$contrast_right[trial_id]) %>%
+    add_column("feedback_type"= session[[session_id]]$feedback_type[trial_id])
+  trial_tibble
 }
-
 ```
 
+We create a tibble that obtains the trial data of a session. In this case, we obtain the first trial data of Session 12:
 
-
-```{r}
-trail_tibble_1_2 <- get_trail_data(1,2)
-trail_tibble_1_2
+```{r echo=FALSE}
+trial_tibble_1_2 <- get_trial_data(12,1)
+trial_tibble_1_2
 ```
-```{r,echo=FALSE}
-
+We also create a tibble that obtains data of a session itself. We obtain the data of Session 12:
+```{r include=FALSE}
 get_session_data <- function(session_id){
-  n_trail <- length(session[[session_id]]$spks)
-  trail_list <- list()
-  for (trail_id in 1:n_trail){
-    trail_tibble <- get_trail_data(session_id,trail_id)
-    trail_list[[trail_id]] <- trail_tibble
+  n_trial <- length(session[[session_id]]$spks)
+  trial_list <- list()
+  for (trial_id in 1:n_trial){
+    trial_tibble <- get_trial_data(session_id,trial_id)
+    trial_list[[trial_id]] <- trial_tibble
   }
-  session_tibble <- do.call(rbind, trail_list)
+  session_tibble <- do.call(rbind, trial_list)
   session_tibble <- session_tibble %>% add_column("mouse_name" = session[[session_id]]$mouse_name) %>% add_column("date_exp" = session[[session_id]]$date_exp) %>% add_column("session_id" = session_id) 
   session_tibble
 }
-
 ```
 
-```{r}
-session_1 <- get_session_data(1)
-head(session_1)
+```{r echo=FALSE}
+session_12 <- get_session_data(12)
+head(session_12)
 ```
 
-```{r,echo=FALSE}
+```{r,include=FALSE}
 session_list = list()
 for (session_id in 1: 18){
   session_list[[session_id]] <- get_session_data(session_id)
@@ -296,37 +300,38 @@ full_tibble$contrast_diff <- abs(full_tibble$contrast_left-full_tibble$contrast_
 
 ```
 
-Here is another way of data processing. For each trail, I take the average of neuron spikes over each time bin. I denote it as ``trail_bin_average``
 
-```{r,echo=FALSE}
+```{r,include=FALSE}
+#We also do an alternative way of data processing. For each trial, the average of neuron spikes over each time bin is taken. I denote it as ``trial_bin_average``
+
 binename <- paste0("bin", as.character(1:40))
 
-get_trail_functional_data <- function(session_id, trail_id){
-  spikes <- session[[session_id]]$spks[[trail_id]]
+get_trial_functional_data <- function(session_id, trial_id){
+  spikes <- session[[session_id]]$spks[[trial_id]]
   if (any(is.na(spikes))){
     disp("value missing")
   }
 
-  trail_bin_average <- matrix(colMeans(spikes), nrow = 1)
-  colnames(trail_bin_average) <- binename
-  trail_tibble  = as_tibble(trail_bin_average)%>% add_column("trail_id" = trail_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trail_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trail_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trail_id])
+  trial_bin_average <- matrix(colMeans(spikes), nrow = 1)
+  colnames(trial_bin_average) <- binename
+  trial_tibble  = as_tibble(trial_bin_average)%>% add_column("trial_id" = trial_id) %>% add_column("contrast_left"= session[[session_id]]$contrast_left[trial_id]) %>% add_column("contrast_right"= session[[session_id]]$contrast_right[trial_id]) %>% add_column("feedback_type"= session[[session_id]]$feedback_type[trial_id])
   
-  trail_tibble
+  trial_tibble
 }
 get_session_functional_data <- function(session_id){
-  n_trail <- length(session[[session_id]]$spks)
-  trail_list <- list()
-  for (trail_id in 1:n_trail){
-    trail_tibble <- get_trail_functional_data(session_id,trail_id)
-    trail_list[[trail_id]] <- trail_tibble
+  n_trial <- length(session[[session_id]]$spks)
+  trial_list <- list()
+  for (trial_id in 1:n_trial){
+    trial_tibble <- get_trial_functional_data(session_id,trial_id)
+    trial_list[[trial_id]] <- trial_tibble
   }
-  session_tibble <- as_tibble(do.call(rbind, trail_list))
+  session_tibble <- as_tibble(do.call(rbind, trial_list))
   session_tibble <- session_tibble %>% add_column("mouse_name" = session[[session_id]]$mouse_name) %>% add_column("date_exp" = session[[session_id]]$date_exp) %>% add_column("session_id" = session_id) 
   session_tibble
 }
-
 ```
-```{r, echo = FALSE}
+
+```{r, include=FALSE}
 session_list = list()
 for (session_id in 1: 18){
   session_list[[session_id]] <- get_session_functional_data(session_id)
@@ -339,9 +344,8 @@ full_functional_tibble$success <- full_functional_tibble$feedback_type == 1
 full_functional_tibble$success <- as.numeric(full_functional_tibble$success)
 ```
 
-In the following table, each row contains information of a particular trail. The columns contains the average spike rate for each time bin.
-
-```{r,echo=FALSE}
+```{r,include=FALSE}
+#In the following table, each row contains information of a particular trial. The columns contains the average spike rate for each time bin.
 head(full_functional_tibble)
 ```
 
@@ -349,52 +353,75 @@ head(full_functional_tibble)
 
 **Goal of EDA**: 
 
-0. Final task is to predict the results of random trails from session 1 and session 18. 
+0. Final task is to predict the results of random trials from session 1 and session 18. 
 
-1. What are some interesting patterns of the data, especially the similarity and difference among different observations (trails). This will answer the question of how to select our training samples. 
-2. What patterns make a trail more likely to have a successful response. This will answer the question of how to build our training features.
+1. What are some interesting patterns of the data, especially the similarity and difference among different observations (trials). This will answer the question of how to select our training samples. 
+2. What patterns make a trial more likely to have a successful response. This will answer the question of how to build our training features.
 
-## What is different for each session/mouse
-### What are the number of neuron's in each session?
+## Total Neurons Per Session
+
+(Each trial has the same amount of neurons for each session)
 ```{r, echo=FALSE}
-full_tibble %>% filter (trail_id==1) %>% group_by(session_id) %>% summarise(sum(region_count))
+full_tibble %>%
+  filter (trial_id==1) %>%
+  group_by(session_id) %>%
+  summarise(sum(region_count))
 ```
-### What is the number brain area of each session
+We can see that Sessions 4, 10, 6, 8, and 18 have the top 5 highest `region_counts`. We may assume that there is higher neuron activity in these Sessions. Those with lower `region_counts`, such as Sessions 16, 7, 17, 3, and 12, have lower neuron activity, respectively. 
+
+```{r}
+# Brain areas activated in each session:
+full_tibble %>% 
+  group_by(session_id) %>% 
+  summarise(unique_area = n_distinct(brain_area))
+```
+
+## Average Spike Rate Over Each Session
+
+The average spike rate is the total number of spikes divided by the total number of time bins for each session.
 ```{r, echo=FALSE}
-full_tibble %>% group_by(session_id) %>% summarise(unique_area = n_distinct(brain_area))
+average_spike <-full_tibble %>% 
+  group_by( session_id, trial_id) %>% 
+  mutate(mean_spike = sum(region_sum_spike)/sum(region_count))
+
+average_spike %>% 
+  group_by(session_id) %>% 
+  summarise(mean_session_spike = mean(mean_spike))
 ```
+From the tibble, we observe that the top 3 highest mean spikes belong in Sessions 13, 3, and 12. We may derive from this observation that there presents greater spike activity in these Sessions. 
 
-### What is the average spike rate over each session 
+## Visualization of Brain Area Activity Per Session
 
-The average spike rate is the total number of spikes divided by the total number of time bins for each session
-```{r, echo=FALSE}
-average_spike <-full_tibble %>% group_by( session_id, trail_id) %>% mutate(mean_spike = sum(region_sum_spike)/sum(region_count))
-average_spike %>% group_by(session_id) %>% summarise(mean_session_spike = mean(mean_spike))
-```
-
-### What are the brain areas with neurons recorded in each session?
+We provide a visualization of brain areas activated in each Session. Sessions 8 and 13 are tied for the greatest number of brain areas, which is 13. In reference to the tibbles highlighting the total neuron count and average spike rate over each session, we may add to the conclusion that Sessions 8 and 13 may have greater spike and neuron activity. 
 
 ```{r,echo=FALSE}
 ggplot(full_tibble, aes(x =session_id , y = brain_area)) +
   geom_point() +
-  labs(x = "session_id" , y ="brain_area") +
+  labs(x = "session_id" , y ="brain_area", title = "Brain Area Representation in Neural Recording Sessions") +
   scale_x_continuous(breaks = unique(full_tibble$session_id)) +  
   theme_minimal()
 ```
 
-### Estimate success rate over different groups (session and mouse)
-
+## Success Rate Estimation by Session
 ```{r,echo=FALSE}
-full_functional_tibble %>% group_by(session_id) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+full_functional_tibble %>% 
+  group_by(session_id) %>% 
+  summarize(success_rate = mean(success, na.rm = TRUE))
 ```
+In the tibble result, we can observe that the trend of the success rate is increasing by session. This presents a positive increasing relationship among all sessions. 
+
+## Success Rate Estimation by Mouse Name
 ```{r,echo=FALSE}
-full_functional_tibble %>% group_by(mouse_name) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+full_functional_tibble %>% 
+  group_by(mouse_name) %>% 
+  summarize(success_rate = mean(success, na.rm = TRUE))
 ```
+Grouping the success rate by mouse name, the overall increasing trend is also reflected in this tibble. We can derive here that the further the session, the greater the success rate there may be. 
 
 
-## What is different among each trail?
+To look at the difference of each trial, we may look at the distribution of the contrast difference
 
-### What is the contrast difference distribution?
+## Contrast Difference Distribution
 ```{r,echo=FALSE}
 full_functional_tibble %>% group_by(contrast_diff) %>% count() %>% 
   ungroup() %>% 
@@ -403,12 +430,14 @@ full_functional_tibble %>% group_by(contrast_diff) %>% count() %>%
   mutate(labels = scales::percent(perc))
 ```
 
-### How does the contrast difference affect the success rate?
+## Effect of  Contrast Difference On Success Rate
 ```{r,echo=FALSE}
-full_functional_tibble %>% group_by(contrast_diff) %>% summarize(success_rate = mean(success, na.rm = TRUE))
+full_functional_tibble %>% 
+  group_by(contrast_diff) %>% 
+  summarize(success_rate = mean(success, na.rm = TRUE))
 ```
 
-### Does the success rate difference among mice cause the different distributions of contrast difference? 
+ Does the success rate difference among mice cause the different distributions of contrast difference? 
 
 ```{r,echo=FALSE}
 counts_df <- full_functional_tibble[c('mouse_name', 'contrast_diff')]
@@ -422,21 +451,18 @@ percentages
 
 Can you use two-way ANOVA to answer the above question more rigorously? 
 
-
-
-
-### Visualize success rate change over time (trail)
-The success rate is binned for each 25 trails.
+ Visualize success rate change over time (trial)
+The success rate is binned for each 25 trials.
 ```{r,echo=FALSE}
-full_functional_tibble$trail_group = cut(full_functional_tibble$trail_id, breaks = seq(0, max(full_functional_tibble$trail_id), by = 25),include.lowest = TRUE)
-levels(full_functional_tibble$trail_group) <- seq(0, max(full_functional_tibble$trail_id), by = 25)[2:18]
+full_functional_tibble$trial_group = cut(full_functional_tibble$trial_id, breaks = seq(0, max(full_functional_tibble$trial_id), by = 25),include.lowest = TRUE)
+levels(full_functional_tibble$trial_group) <- seq(0, max(full_functional_tibble$trial_id), by = 25)[2:18]
 ```
 
 The success rate change over time for individual sessions:
 
 ```{r,echo=FALSE}
-success_rate <- aggregate(success ~ session_id + trail_group, data = full_functional_tibble, FUN = function(x) mean(x) )
-ggplot(success_rate, aes(x = trail_group, y = success)) +
+success_rate <- aggregate(success ~ session_id + trial_group, data = full_functional_tibble, FUN = function(x) mean(x) )
+ggplot(success_rate, aes(x = trial_group, y = success)) +
   geom_bar(stat = "identity", position = "dodge") +
   facet_wrap(~session_id, ncol=3) +
       theme_bw()
@@ -446,17 +472,17 @@ ggplot(success_rate, aes(x = trail_group, y = success)) +
 The success rate change over time for individual mouse:
 
 ```{r,echo=FALSE}
-success_rate <- aggregate(success ~ mouse_name + trail_group, data = full_functional_tibble, FUN = function(x) mean(x) )
-ggplot(success_rate, aes(x = trail_group, y = success)) +
+success_rate <- aggregate(success ~ mouse_name + trial_group, data = full_functional_tibble, FUN = function(x) mean(x) )
+ggplot(success_rate, aes(x = trial_group, y = success)) +
   geom_bar(stat = "identity", position = "dodge") +
   facet_wrap(~mouse_name) +
       theme_bw()
 ```
 
 
-### Visualize the change of overall neuron spike rate over time
+ Visualize the change of overall neuron spike rate over time
 
-The ``average_spike`` is the number of spikes within each number bin divided total number of neurons for each trail.
+The ``average_spike`` is the number of spikes within each number bin divided total number of neurons for each trial.
 
 ```{r,echo=FALSE}
 col_names <-names(full_functional_tibble)
@@ -465,8 +491,8 @@ region_mean_subset <- col_names[grep("^region_mean", col_names)]
 
 ```
 ```{r,echo=FALSE}
-# average_spike <- full_tibble %>% group_by( session_id,trail_id) %>% summarise(mean_spike = mean(region_mean_spike))
-average_spike <- full_tibble %>% group_by( session_id,trail_id) %>% summarise(mean_spike = sum(region_sum_spike)/sum(region_count))
+# average_spike <- full_tibble %>% group_by( session_id,trial_id) %>% summarise(mean_spike = mean(region_mean_spike))
+average_spike <- full_tibble %>% group_by( session_id,trial_id) %>% summarise(mean_spike = sum(region_sum_spike)/sum(region_count))
 
 average_spike$mouse_name <- full_functional_tibble$mouse_name
 average_spike$contrast_diff <- full_functional_tibble$contrast_diff
@@ -476,7 +502,7 @@ average_spike$success <- full_functional_tibble$success
 The change of overall neuron spike rate for each session 
 
 ```{r,echo=FALSE}
-ggplot(average_spike, aes(x = trail_id, y = mean_spike)) + 
+ggplot(average_spike, aes(x = trial_id, y = mean_spike)) + 
   geom_line()+
   geom_smooth(method = "loess")+  # Fit a smooth spline
 
@@ -486,14 +512,14 @@ ggplot(average_spike, aes(x = trail_id, y = mean_spike)) +
 The change of overall neuron spike rate for each mouse 
 
 ```{r,echo=FALSE}
-ggplot(average_spike, aes(x = trail_id, y = mean_spike)) + 
+ggplot(average_spike, aes(x = trial_id, y = mean_spike)) + 
   geom_line()+
   geom_smooth(method = "loess")+  # Fit a smooth spline
 
   facet_wrap(~mouse_name)
 ```
 
-# Dimension Reduction through PCA
+ Dimension Reduction through PCA
 
 
 We perform PCA and visualize the 2D results. 
@@ -528,17 +554,17 @@ What can be found through these two plots?
 
 # Section 3 Data integration (20 pts).
 
-I decide to use trails from all sessions first and see the performance. The feature I decide to use are session_id, trail_id, signals, and the average spike rate of each time bin.
+I decide to use trials from all sessions first and see the performance. The feature I decide to use are session_id, trial_id, signals, and the average spike rate of each time bin.
 
 
 ```{r}
-predictive_feature <- c("session_id","trail_id","contrast_right","contrast_left", "contrast_diff" ,binename)
+predictive_feature <- c("session_id","trial_id","contrast_right","contrast_left", "contrast_diff" ,binename)
 head(full_functional_tibble[predictive_feature])
 ```
 ```{r,echo=FALSE}
 predictive_dat <- full_functional_tibble[predictive_feature]
 #predictive_dat$success <- as.numeric(predictive_dat$success)
-predictive_dat$trail_id <- as.numeric(predictive_dat$trail_id)
+predictive_dat$trial_id <- as.numeric(predictive_dat$trial_id)
 label <- as.numeric(full_functional_tibble$success)
 X <- model.matrix(~., predictive_dat)
 
@@ -548,7 +574,7 @@ X <- model.matrix(~., predictive_dat)
 
 
 # Prediction
-## train the model on 80% trails and test it on the rest 
+## train the model on 80% trials and test it on the rest 
 
 ```{r}
 # split
@@ -594,7 +620,7 @@ auroc
 # Section 5 Prediction performance on the test sets (5 pts).
 
 
-## test the model's performance on 50 random trails from session 18
+## test the model's performance on 50 random trials from session 18
 ```{r}
 # split
 set.seed(123) # for reproducibility
@@ -626,7 +652,7 @@ auroc <- roc(test_label, predictions)
 auroc
 ```
 
-## test the model's performance on 50 random trails from session 1
+## test the model's performance on 50 random trials from session 1
 ```{r,echo=FALSE}
 # split
 set.seed(123) # for reproducibility
