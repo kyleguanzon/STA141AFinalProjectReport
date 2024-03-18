@@ -584,7 +584,7 @@ train_label <- label[trainIndex]
 test_label <- label[-trainIndex]
 ```
 
-I decide to go with xgboost because I have lots of variables/features, I expect there are some interactions among those interactions, and I have a relative large training set to avoid overfitting. 
+Upon data exploration, we know that the data structure of the project is complex since it has plenty of variables/features. We can also assume that there are some interactions among those interactions, and the training set is also relatively large. To avoid overfitting, xgboost is used to create the prediction model. 
 
 ```{r}
 xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
