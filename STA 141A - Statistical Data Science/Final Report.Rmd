@@ -1,10 +1,15 @@
 ---
-title: "Final Report"
+title: "Neural Activity and Behavioral Predictions: An Analysis of Behavioral Outcomes in Mice"
 author: "Kyle Guanzon"
 date: "2024-03-17"
-output: html_document
+output: 
+  html_document:
+    theme: yeti
+    toc: true
+    toc_float: true
+
 ---
-```{r}
+```{r include=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
@@ -13,20 +18,27 @@ library(tidyverse)
 library(caret) 
 library(xgboost)
 library(pROC) # To create citations
-
 ```
 
-# Overview
+# Abstract (5 pts).
 
-Try not to print raw R outputs but make the result as in **a clean and readable report**.   
+  [ABSTRACT GOES HERE]
 
-Lots of the figures in the file serve as exploration of the data. Try not to include the same figures from this demonstration file in your own report. Think about how to plot the figures **more concisely**. If you decide to include some of the figures/tables from this file, please include detailed explanation of the figures/tables and **what is your find out** from the figures/tables.
+# Section 1 Introduction (5 pts).
 
-# Background
+  The intricate dance between sensory input and decision-making in mammals involves complex neural mechanisms, with the visual cortex playing a pivotal role in processing visual stimuli and guiding behavioral responses. In the seminal work of Steinmetz et al. (2019), the neural underpinnings of decision-making were explored through detailed experiments involving mice subjected to various visual stimuli, where the resulting neural activity was meticulously recorded. This study stands as a testament to the progress in our understanding of how the brain interprets and responds to sensory information, laying the groundwork for further exploration into the predictive capabilities of neural activity in relation to behavior.
 
-In this project, we analyze a subset of data collected by Steinmetz et al. (2019). While this document provides the basic understanding of the experiments, it is highly recommended that one consults the original publication for a more comprehensive understanding in order to improve the quality of the analysis report.
+  Despite the advances, a gap remains in our ability to predict behavioral outcomes based solely on the neural activity elicited by visual stimuli. The complexity of neural responses, coupled with the variability in individual and session-based responses, presents a significant challenge to developing predictive models with high accuracy and reliability. This project aims to bridge this gap by employing a comprehensive analysis of neural spike train data, alongside the stimuli conditions, to build a model capable of predicting the outcome of each trial in terms of success or failure.
 
-In the study conducted by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions. Each session comprised several hundred trials, during which visual stimuli were randomly presented to the mouse on two screens positioned on both sides of it. The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus. The mice were required to make decisions based on the visual stimuli, using a wheel controlled by their forepaws. A reward or penalty (i.e., feedback) was subsequently administered based on the outcome of their decisions. In particular, 
+  By focusing on the detailed spike trains of neurons in the visual cortex of mice and the conditions of the visual stimuli presented, this study seeks to uncover patterns and relationships that can inform our understanding of the neural basis of decision-making. Through a combination of exploratory data analysis, data integration techniques, and predictive modeling, this project endeavors to enhance our predictive capabilities, providing insights that could have broad implications for neuroscience, particularly in understanding cognitive processes and developing neural-inspired artificial intelligence systems.
+
+  In pursuing this objective, this project not only contributes to the field of computational neuroscience by advancing our knowledge of neural activity patterns associated with decision-making but also demonstrates the potential of machine learning techniques in unraveling the complexities of brain function. As we delve into the analysis and modeling of neural and behavioral data, we stand on the precipice of new discoveries that could further illuminate the neural circuitry underlying decision-making in mammals. (ChatGPT)
+  
+## Background 
+
+  In this project, we analyze a subset of data collected by Steinmetz et al. (2019). While this document provides the basic understanding of the experiments, it is highly recommended that one consults the original publication for a more comprehensive understanding in order to improve the quality of the analysis report.
+
+  In the study conducted by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions. Each session comprised several hundred trials, during which visual stimuli were randomly presented to the mouse on two screens positioned on both sides of it. The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus. The mice were required to make decisions based on the visual stimuli, using a wheel controlled by their forepaws. A reward or penalty (i.e., feedback) was subsequently administered based on the outcome of their decisions. In particular, 
 
 - When left contrast > right contrast, success (1) if turning the wheel to the right and failure (-1) otherwise.  
 - When right contrast > left contrast, success (1) if turning the wheel to the left and failure (-1) otherwise.  
@@ -35,16 +47,18 @@ In the study conducted by Steinmetz et al. (2019), experiments were performed on
 
 The activity of the neurons in the mice's visual cortex was recorded during the trials and made available in the form of spike trains, which are collections of timestamps corresponding to neuron firing. In this project, we focus specifically on the spike trains of neurons from the onset of the stimuli to 0.4 seconds post-onset. In addition, we only use 18 sessions (Sessions 1 to 18) from four mice: Cori, Frossman, Hence, and Lederberg.
 
-# Data structure 
+## Data Structure 
 
----
-
-A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
+  To understand the data's structure, we are going to randomly explore one of the 18 sessions. 
+  
+  Starting the EDA with a single session before moving to the entire dataset is a strategic decision that helps in understanding the data better, refining your analysis techniques, ensuring computational efficiency, and establishing a baseline for further comparative analyses. This approach not only enhances the quality of the data analysis but also contributes to a more coherent and comprehensive understanding of the data as a whole. (ChatGPT)
+  
+  A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
 
 There are a total of 18 RDS files provided that contain the records from 18 sessions. Each file contains the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
 
 *From ChatGPT, we then create a consolidated data frame that includes session number, mouse name, and date of experiment for each session, as a RDS file overview:
-```{r}
+```{r echo=FALSE}
 # Load necessary libraries
 library(dplyr)
 
@@ -78,7 +92,8 @@ print(session_info)
 ```
 From the dataset, we can see that there are 18 sessions, where Sessions 1-3 have the mouse_name = Cori, Sessions 4-7 have mouse_name Forssmann, Sessions 8-11 have the mouse_name Hench, and Sessions 13-18 have mouse_name Lederberg, respectively.
 
-We then, now explore what's in a session by randomly exploring a session from Session 1-18.
+We then, now, explore what's in a session by randomly exploring a session from Session 1-18, before we explore the rest of the 18 sessions. 
+
 
 ## What's in a session?  
 ```{r}
@@ -91,13 +106,62 @@ for(i in 1:18){
 }
 
 # Prints out variables in Session 1
-names(session[[1]])
+#names(session[[1]])
 
 # Prints out variables in Session 18
-names(session[[18]])
+#names(session[[18]])
 
 # Prints out variables in Session 13
-names(session[[13]])
+#names(session[[13]])
+
+
+#names(session[[1]])
+
+summary(session[[1]]$brain_area)
+
+#table(session[[1]]$brain_area)
+
+```
+
+```{r}
+# Behavioural data
+
+summary(session[[1]]$contrast_left) # Summary statistics of 
+#table(session[[1]]$contrast_left) #  frequency of trials that were conducted with each specific level of left stimulus contrast in Session 1.
+#length(session[[1]]$contrast_left) # total number of trials for contrast_left in Session 1
+
+#table(session[[1]]$contrast_right)
+#length(session[[1]]$contrast_right)
+
+
+#summary(session[[1]]$feedback_type)
+#table(session[[1]]$feedback_type)
+```
+
+```{r}
+# Neural data
+
+typeof(session[[1]]$spks)
+
+length(session[[1]]$spks)
+
+dim(session[[1]]$spks[[10]]) # the number of neurons (734) by the number of time bins (40)
+
+length(session[[1]]$spks[[10]][5,])
+
+
+typeof(session[[1]]$time)
+session[[1]]$time[[10]]
+
+session[[1]]$feedback_type[10]
+
+
+session[[1]]$contrast_left[10]
+
+session[[1]]$contrast_right[10]
+
+
+# session[[1]]$spks[[10]] ----  session[[1]]$feedback_type[10]
 ```
 
 Five variables are available for each trial, namely 
@@ -115,13 +179,13 @@ Five variables are available for each trial, namely
 # Each session contains trials and other information as described
 
 # Initialize a vector to store the number of trials in each session
-number_of_trials_per_session <- integer(length(sessions))
+number_of_trials_per_session <- integer(length(session))
 
 # Loop through each session to count the trials
-for (i in seq_along(sessions)) {
+for (i in seq_along(session)) {
   # Count the number of trials in the ith session
   # Assuming trials are stored in a list or a similar structure
-  number_of_trials_per_session[i] <- length(sessions[[i]]$spks)
+  number_of_trials_per_session[i] <- length(session[[i]]$spks)
 }
 
 # Print the number of trials in each session
@@ -214,6 +278,7 @@ get_session_data <- function(session_id){
 }
 
 ```
+
 ```{r}
 session_1 <- get_session_data(1)
 head(session_1)
@@ -280,14 +345,14 @@ In the following table, each row contains information of a particular trail. The
 head(full_functional_tibble)
 ```
 
+# Section 2 Exploratory Data Analysis (20 pts).
 
-# EDA
 **Goal of EDA**: 
 
 0. Final task is to predict the results of random trails from session 1 and session 18. 
 
 1. What are some interesting patterns of the data, especially the similarity and difference among different observations (trails). This will answer the question of how to select our training samples. 
-2. What patterns make a trail more likely to have a successful respinse. This will answer the question of how to build our training features.
+2. What patterns make a trail more likely to have a successful response. This will answer the question of how to build our training features.
 
 ## What is different for each session/mouse
 ### What are the number of neuron's in each session?
@@ -300,6 +365,8 @@ full_tibble %>% group_by(session_id) %>% summarise(unique_area = n_distinct(brai
 ```
 
 ### What is the average spike rate over each session 
+
+The average spike rate is the total number of spikes divided by the total number of time bins for each session
 ```{r, echo=FALSE}
 average_spike <-full_tibble %>% group_by( session_id, trail_id) %>% mutate(mean_spike = sum(region_sum_spike)/sum(region_count))
 average_spike %>% group_by(session_id) %>% summarise(mean_session_spike = mean(mean_spike))
@@ -341,7 +408,7 @@ full_functional_tibble %>% group_by(contrast_diff) %>% count() %>%
 full_functional_tibble %>% group_by(contrast_diff) %>% summarize(success_rate = mean(success, na.rm = TRUE))
 ```
 
-### Does the success rate difference among mice caused by the different distributions of contrast difference? 
+### Does the success rate difference among mice cause the different distributions of contrast difference? 
 
 ```{r,echo=FALSE}
 counts_df <- full_functional_tibble[c('mouse_name', 'contrast_diff')]
@@ -457,7 +524,10 @@ ggplot(pc_df, aes(x = PC1, y = PC2, color = mouse_name)) +
 
 What can be found through these two plots? 
 
-# Data Integration
+
+
+# Section 3 Data integration (20 pts).
+
 I decide to use trails from all sessions first and see the performance. The feature I decide to use are session_id, trail_id, signals, and the average spike rate of each time bin.
 
 
@@ -473,6 +543,9 @@ label <- as.numeric(full_functional_tibble$success)
 X <- model.matrix(~., predictive_dat)
 
 ```
+
+# Section 4 Predictive modeling (20 pts).
+
 
 # Prediction
 ## train the model on 80% trails and test it on the rest 
@@ -517,6 +590,9 @@ conf_matrix$table
 auroc <- roc(test_label, predictions)
 auroc
 ```
+
+# Section 5 Prediction performance on the test sets (5 pts).
+
 
 ## test the model's performance on 50 random trails from session 18
 ```{r}
@@ -582,30 +658,10 @@ auroc <- roc(test_label, predictions)
 auroc
 ```
 
+# Section 6 Discussion (5 pts).
 
-
-
-
-
-
-
-
-
-
-# Project milestones
-
-A series of milestones are set throughout the quarter in order to encourage, and reward, early starts on the course project. Furthermore, there are several project discussion sessions throughout the quarter for students to utilize. 
-
-
-- Project proposal January 26th (optional): 0 points. Students are **strongly recommended** to attend the project discussion during the regular lecture time on Zoom. 
-- Milestone I February 9th  (optional): 0 points but eligible for bonus points for outstanding progress or novel findings. Draft analysis and results for Part I visualization. Students are **recommended** to attend the optional project discussion during the regular lecture time on Zoom. 
-- Milestone II March 1st (optional): 0 points but eligible for bonus points for outstanding progress or novel findings. Draft analysis and results for Part II data integration. Students are **recommended** to attend the optional project discussion during the regular lecture time on Zoom. 
-- March 18th Project report: 60 points. Students are **strongly recommended** to attend at least one project consulting session in Week 10. 
-
-
-**Remark**: One important thing to note is that a course project is not an exam where questions on the exam are kept confidential. Instead, the instructor and TAs are more than happy to share with you our thoughts on how to improve your projects before you submit them. From a practical perspective, it is more rewarding to solicit advice and suggestions before we grade your reports than to wait for feedback afterwards. That said, we understand that you may have other courses and obligations that are more important than this course. Therefore, all submissions and attendance are optional except for the final project report due on June 12th.
-
+ [ADD DISCUSSION HERE]
+ 
 # Reference {-}
-
 
 Steinmetz, N.A., Zatka-Haas, P., Carandini, M. et al. Distributed coding of choice, action and engagement across the mouse brain. Nature 576, 266–273 (2019). https://doi.org/10.1038/s41586-019-1787-x
