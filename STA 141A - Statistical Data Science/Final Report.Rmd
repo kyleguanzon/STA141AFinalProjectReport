@@ -20,23 +20,11 @@ library(xgboost)
 library(pROC) # To create citations
 ```
 
-# Abstract (5 pts).
+# Abstract
 
-  [ABSTRACT GOES HERE]
+  Neural activity and behavioral outcomes are examines to illustrate the complexities of decision-making in mammal species. This study leverages the comprehensive neural spike train data from the groundbreaking research by Steinmetz et al. (2019), focusing on the visual cortex's response to stimuli in mice. This report bridges the gap between observed neural activity and the predictive modeling of behavioral outcomes. Undergoing thorough exploratory data analysis methods, key patterns and relationships within spike trains are identified, in relation to the success and failure of behavioral responses to visual stimuli. Machine learning algorithms such as XGBoost is implemented to train the model created, which is further evaluated by AUROC. Resources and code were obtained from STA 141A discussions and course notes, as well as ChatGPT. 
 
-# Section 1 Introduction (5 pts).
-
-  The intricate dance between sensory input and decision-making in mammals involves complex neural mechanisms, with the visual cortex playing a pivotal role in processing visual stimuli and guiding behavioral responses. In the seminal work of Steinmetz et al. (2019), the neural underpinnings of decision-making were explored through detailed experiments involving mice subjected to various visual stimuli, where the resulting neural activity was meticulously recorded. This study stands as a testament to the progress in our understanding of how the brain interprets and responds to sensory information, laying the groundwork for further exploration into the predictive capabilities of neural activity in relation to behavior.
-
-  Despite the advances, a gap remains in our ability to predict behavioral outcomes based solely on the neural activity elicited by visual stimuli. The complexity of neural responses, coupled with the variability in individual and session-based responses, presents a significant challenge to developing predictive models with high accuracy and reliability. This project aims to bridge this gap by employing a comprehensive analysis of neural spike train data, alongside the stimuli conditions, to build a model capable of predicting the outcome of each trial in terms of success or failure.
-
-  By focusing on the detailed spike trains of neurons in the visual cortex of mice and the conditions of the visual stimuli presented, this study seeks to uncover patterns and relationships that can inform our understanding of the neural basis of decision-making. Through a combination of exploratory data analysis, data integration techniques, and predictive modeling, this project endeavors to enhance our predictive capabilities, providing insights that could have broad implications for neuroscience, particularly in understanding cognitive processes and developing neural-inspired artificial intelligence systems.
-
-  In pursuing this objective, this project not only contributes to the field of computational neuroscience by advancing our knowledge of neural activity patterns associated with decision-making but also demonstrates the potential of machine learning techniques in unraveling the complexities of brain function. As we delve into the analysis and modeling of neural and behavioral data, we stand on the precipice of new discoveries that could further illuminate the neural circuitry underlying decision-making in mammals. (ChatGPT)
-  
-## Background 
-
-  In this project, we analyze a subset of data collected by Steinmetz et al. (2019). While this document provides the basic understanding of the experiments, it is highly recommended that one consults the original publication for a more comprehensive understanding in order to improve the quality of the analysis report.
+# Section 1: Introduction
 
   In the study conducted by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions. Each session comprised several hundred trials, during which visual stimuli were randomly presented to the mouse on two screens positioned on both sides of it. The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus. The mice were required to make decisions based on the visual stimuli, using a wheel controlled by their forepaws. A reward or penalty (i.e., feedback) was subsequently administered based on the outcome of their decisions. In particular, 
 
@@ -47,16 +35,21 @@ library(pROC) # To create citations
 
 The activity of the neurons in the mice's visual cortex was recorded during the trials and made available in the form of spike trains, which are collections of timestamps corresponding to neuron firing. In this project, we focus specifically on the spike trains of neurons from the onset of the stimuli to 0.4 seconds post-onset. In addition, we only use 18 sessions (Sessions 1 to 18) from four mice: Cori, Frossman, Hence, and Lederberg.
 
+This study aims to identify patterns and relationships that can help us understand the neural basis of decision-making by concentrating on the finely tuned spike trains of neurons in the mice's visual cortex and the circumstances of the visual stimuli presented. This project aims to improve our predictive capabilities by combining exploratory data analysis data integration strategies and predictive modeling. The insights it provides could have a wide range of implications for neuroscience especially in terms of comprehending cognitive processes and creating artificial intelligence systems inspired by neurons.
+
+This project not only advances our understanding of neural activity patterns linked to decision-making which benefits the field of computational neuroscience but it also shows how machine learning techniques can be used to decipher the intricate workings of the human brain. We are at the cusp of making new discoveries in the analysis and modeling of neural and behavioral data that may shed more light on the neural circuitry underlying decision-making in mammals.
+
 ## Data Structure 
   
-  A total of 18 RDS files are provided that contain the records from 18 sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
-
- There are a total of 18 RDS files provided that contain the records from 18 sessions. Each file contains the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
+  A total of 18 RDS files are provided that contain the records from 18 sessions. The name of mouse from `mouse_name` and date of the experiment from `date_exp` in each RDS file. 
+  
+  There are a total of 18 RDS files provided that contain the records from 18 sessions. Each file contains the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
  
- From the research paper, we also know that there are x trials in a given session. We will use this information to determine the total number of trials per session.
+ From the research paper, we also know that there are $x$ trials in a given session. We will use this information to determine the total number of trials per session.
  
-*From ChatGPT, we then create a consolidated data frame that includes session number, mouse name, and date of experiment for each session, as a RDS file overview:
+ We then create a consolidated data frame that includes session number, mouse name, and date of experiment for each session, as a RDS file overview:
 ```{r echo=FALSE}
+#From ChatGPT
 # Code provided
 session=list()
 for(i in 1:18){
@@ -111,7 +104,7 @@ print(session_info)
 
   We then, now, explore what's in a session by randomly exploring a session from Session 1-18, before we explore the rest of the 18 sessions. 
   
-  Starting the EDA with a single session before moving to the entire dataset is a strategic decision that helps in understanding the data better, refining your analysis techniques, ensuring computational efficiency, and establishing a baseline for further comparative analyses. This approach not only enhances the quality of the data analysis but also contributes to a more coherent and comprehensive understanding of the data as a whole. (ChatGPT)
+  Its a wise strategic move to begin the EDA with a single session before working your way through the entire dataset. This will help better understand the data hone your analysis methods guarantee computational efficiency and create a baseline for additional comparative analyses. By using this method the data analysis becomes more high-quality and the overall understanding of the data becomes more comprehensive and logical. 
 
 ### What's in a Session's Trial?
 
@@ -231,12 +224,12 @@ table(session[[12]]$feedback_type)
 
 ## Data Processing
 
-Going over the data strutcure of Session 12, we now are equipped to transform and integrate the data into something meaningful. 
-
-I denote the ``spike rate`` per neuron as the sum of spikes over the 40 time bins. 
-The ``region_mean_spike`` records the average of spike rate over each region. 
+Going over the data structure of Session 12, we now are equipped to transform and integrate the data into a more meaningful outcome. 
 
 ```{r include=FALSE}
+#I denote the ``spike rate`` per neuron as the sum of spikes over the 40 time bins. 
+#The ``region_mean_spike`` records the average of spike rate over each region. 
+
 #trial ID is trial number
 get_trial_data <- function(session_id, trial_id){
   spikes <- session[[session_id]]$spks[[trial_id]]
@@ -287,6 +280,7 @@ get_session_data <- function(session_id){
 session_12 <- get_session_data(12)
 head(session_12)
 ```
+To compare the two tibbles, we can see that the values for `region_sum_spike`, `region_count`, and `region_mean_spike` are the same. We may conclude that the number of neurons for each session's trial is constant, or the same for all trials in one session. 
 
 ```{r,include=FALSE}
 session_list = list()
@@ -349,16 +343,15 @@ full_functional_tibble$success <- as.numeric(full_functional_tibble$success)
 head(full_functional_tibble)
 ```
 
-# Section 2 Exploratory Data Analysis (20 pts).
+# Section 2: Exploratory Data Analysis
 
-**Goal of EDA**: 
+The goal of the Exploratory Data Analysis is to provide a strong basis for precisely projecting the results of random trials conducted between sessions 1 and 18. The objective is to reveal intriguing patterns by thoroughly examining the dataset with a particular emphasis on highlighting the commonalities and discrepancies among different observations or trials. Finding the best way to choose our training samples is essential to making sure the predictive model is trained on representative and instructive data. This can be achieved through thorough investigation. 
 
-0. Final task is to predict the results of random trials from session 1 and session 18. 
+Furthermore, a large portion of the investigation is devoted to pinpointing particular patterns that signify the success of a trial. We can build reliable training features that predict trial outcomes by using an understanding of these patterns as a guide. 
 
-1. What are some interesting patterns of the data, especially the similarity and difference among different observations (trials). This will answer the question of how to select our training samples. 
-2. What patterns make a trial more likely to have a successful response. This will answer the question of how to build our training features.
+The EDA not only sets the stage for more complex predictive modeling, but it also improves the comprehension of the underlying dynamics affecting trial outcomes which helps to shape the creation of predictive models that are more precise and trustworthy.
 
-## Total Neurons Per Session
+### Total Neurons Per Session
 
 (Each trial has the same amount of neurons for each session)
 ```{r, echo=FALSE}
@@ -369,14 +362,14 @@ full_tibble %>%
 ```
 We can see that Sessions 4, 10, 6, 8, and 18 have the top 5 highest `region_counts`. We may assume that there is higher neuron activity in these Sessions. Those with lower `region_counts`, such as Sessions 16, 7, 17, 3, and 12, have lower neuron activity, respectively. 
 
-```{r}
+```{r echo=FALSE}
 # Brain areas activated in each session:
 full_tibble %>% 
   group_by(session_id) %>% 
   summarise(unique_area = n_distinct(brain_area))
 ```
 
-## Average Spike Rate Over Each Session
+### Average Spike Rate Over Each Session
 
 The average spike rate is the total number of spikes divided by the total number of time bins for each session.
 ```{r, echo=FALSE}
@@ -390,7 +383,7 @@ average_spike %>%
 ```
 From the tibble, we observe that the top 3 highest mean spikes belong in Sessions 13, 3, and 12. We may derive from this observation that there presents greater spike activity in these Sessions. 
 
-## Visualization of Brain Area Activity Per Session
+### Visualization of Brain Area Activity Per Session
 
 We provide a visualization of brain areas activated in each Session. Sessions 8 and 13 are tied for the greatest number of brain areas, which is 13. In reference to the tibbles highlighting the total neuron count and average spike rate over each session, we may add to the conclusion that Sessions 8 and 13 may have greater spike and neuron activity. 
 
@@ -402,7 +395,7 @@ ggplot(full_tibble, aes(x =session_id , y = brain_area)) +
   theme_minimal()
 ```
 
-## Success Rate Estimation by Session
+### Success Rate Estimation by Session
 ```{r,echo=FALSE}
 full_functional_tibble %>% 
   group_by(session_id) %>% 
@@ -410,7 +403,7 @@ full_functional_tibble %>%
 ```
 In the tibble result, we can observe that the trend of the success rate is increasing by session. This presents a positive increasing relationship among all sessions. 
 
-## Success Rate Estimation by Mouse Name
+### Success Rate Estimation by Mouse Name
 ```{r,echo=FALSE}
 full_functional_tibble %>% 
   group_by(mouse_name) %>% 
@@ -421,7 +414,7 @@ Grouping the success rate by mouse name, the overall increasing trend is also re
 
 To look at the difference of each trial, we may look at the distribution of the contrast difference
 
-## Contrast Difference Distribution
+### Contrast Difference Distribution
 ```{r,echo=FALSE}
 full_functional_tibble %>% group_by(contrast_diff) %>% count() %>% 
   ungroup() %>% 
@@ -429,16 +422,17 @@ full_functional_tibble %>% group_by(contrast_diff) %>% count() %>%
   arrange(perc) %>%
   mutate(labels = scales::percent(perc))
 ```
+We can observe from the tibble that the highest distribution percentage is 33.18% when the contrast difference is at 0.00, followed by 20.57% at 0.50, and 17.56% at 1.00. In addition, the distribution is at about 14% when the contrast difference is at 0.25 and 0.75, illustrating a roughly similar distribution. 
 
-## Effect of  Contrast Difference On Success Rate
+### Effect of Contrast Difference On Success Rate
 ```{r,echo=FALSE}
 full_functional_tibble %>% 
   group_by(contrast_diff) %>% 
   summarize(success_rate = mean(success, na.rm = TRUE))
 ```
+The success rate is highest when the contrast difference is at the largest value, which is 1, compared to the lowest contrast difference 0.00, which has the lowest success rate. We may conclude that greater success may be achieved if the contrast difference value is also greater. 
 
- Does the success rate difference among mice cause the different distributions of contrast difference? 
-
+### Disparities Among Mice on Contrast Differences and Success Rates
 ```{r,echo=FALSE}
 counts_df <- full_functional_tibble[c('mouse_name', 'contrast_diff')]
 counts_df$contrast_diff <- as.factor(counts_df$contrast_diff)
@@ -446,20 +440,18 @@ counts <- table(counts_df)
 
 percentages <- prop.table(counts, margin = 1)
 percentages
-
 ```
+In the tibble, we can observe that there is greater success rates among all mice when the contrast difference is zero. The least success that is about roughly evenly distributed among all mice is when the contrast difference is at 0.75.
 
-Can you use two-way ANOVA to answer the above question more rigorously? 
+### Data Visualization
 
- Visualize success rate change over time (trial)
-The success rate is binned for each 25 trials.
-```{r,echo=FALSE}
+Visualizing success rate change over time (trial). The success rate is binned for each 25 trials.
+```{r include=FALSE}
 full_functional_tibble$trial_group = cut(full_functional_tibble$trial_id, breaks = seq(0, max(full_functional_tibble$trial_id), by = 25),include.lowest = TRUE)
 levels(full_functional_tibble$trial_group) <- seq(0, max(full_functional_tibble$trial_id), by = 25)[2:18]
 ```
 
-The success rate change over time for individual sessions:
-
+### Success Rate Change Over Time For Individual Sessions
 ```{r,echo=FALSE}
 success_rate <- aggregate(success ~ session_id + trial_group, data = full_functional_tibble, FUN = function(x) mean(x) )
 ggplot(success_rate, aes(x = trial_group, y = success)) +
@@ -469,8 +461,9 @@ ggplot(success_rate, aes(x = trial_group, y = success)) +
 
 ```
 
-The success rate change over time for individual mouse:
+In the plot, we can see that there presents roughly about the same amount of variability across all sessions. However, some sessions have smaller amounts of data. This may be due to the unequal amount of trials per session. We can assume that sessions that have smaller data amounts have lesser number of trials compared to the other sessions. 
 
+### Success Rate Change Over Time For Individual Mice:
 ```{r,echo=FALSE}
 success_rate <- aggregate(success ~ mouse_name + trial_group, data = full_functional_tibble, FUN = function(x) mean(x) )
 ggplot(success_rate, aes(x = trial_group, y = success)) +
@@ -479,8 +472,9 @@ ggplot(success_rate, aes(x = trial_group, y = success)) +
       theme_bw()
 ```
 
+In the plot, we can see that there presents roughly about the same amount of variability across all mice, with some spike changes in mouse Lederberg. We can also see that the general trend of the success rate change is roughly equal, or slightly increases a little, then decreases over time. In addition, the unequal amount of trials per session is reflected in this plot. We can assume that mice Cori and Forssmann have lesser number of trials compared to mice Hench and Lederberg.
 
- Visualize the change of overall neuron spike rate over time
+### Visualizing The Change of Overall Neuron Spike Rate Over Time
 
 The ``average_spike`` is the number of spikes within each number bin divided total number of neurons for each trial.
 
@@ -490,7 +484,7 @@ region_sum_subset <- col_names[grep("^region_sum", col_names)]
 region_mean_subset <- col_names[grep("^region_mean", col_names)]
 
 ```
-```{r,echo=FALSE}
+```{r,include=FALSE}
 # average_spike <- full_tibble %>% group_by( session_id,trial_id) %>% summarise(mean_spike = mean(region_mean_spike))
 average_spike <- full_tibble %>% group_by( session_id,trial_id) %>% summarise(mean_spike = sum(region_sum_spike)/sum(region_count))
 
@@ -499,7 +493,7 @@ average_spike$contrast_diff <- full_functional_tibble$contrast_diff
 average_spike$success <- full_functional_tibble$success
 ```
 
-The change of overall neuron spike rate for each session 
+### Change of Overall Neuron Spike Rate for Each Session 
 
 ```{r,echo=FALSE}
 ggplot(average_spike, aes(x = trial_id, y = mean_spike)) + 
@@ -508,8 +502,9 @@ ggplot(average_spike, aes(x = trial_id, y = mean_spike)) +
 
   facet_wrap(~session_id)
 ```
+In the plot, we can see that Sessions 11, 8, and 9 have the greatest variability among all sessions. Sessions 4 and 18 visually have the least variability. 
 
-The change of overall neuron spike rate for each mouse 
+### Change of Overall Neuron Spike Rate for Each Mouse 
 
 ```{r,echo=FALSE}
 ggplot(average_spike, aes(x = trial_id, y = mean_spike)) + 
@@ -518,9 +513,9 @@ ggplot(average_spike, aes(x = trial_id, y = mean_spike)) +
 
   facet_wrap(~mouse_name)
 ```
+Mouse Lederberg has the most variability among all mice. However, there seems to be a trend for all mice where the change of overall neuron spike rate for each mouse drastically decreases in the end trials, along with its drastically shrinking variability. 
 
- Dimension Reduction through PCA
-
+## Dimension Reduction through PCA
 
 We perform PCA and visualize the 2D results. 
 
@@ -540,6 +535,7 @@ ggplot(pc_df, aes(x = PC1, y = PC2, color = session_id)) +
   geom_point() +
   labs(title = "PCA: PC1 vs PC2")
 ```
+In this plot, we can see that there is a cluster of points on the right side of the plot, indicating a patterns of similar characteristics. In addition, we can see that the spread is greater on the x-axis, indicating that there is greater variability among these sessions. 
 
 The dots are colored for different mouse 
 ```{r, echo = FALSE}
@@ -548,16 +544,16 @@ ggplot(pc_df, aes(x = PC1, y = PC2, color = mouse_name)) +
   labs(title = "PCA: PC1 vs PC2")
 ```
 
-What can be found through these two plots? 
+In this plot, we can see that there is a cluster of points on the right side of the plot, indicating a patterns of similar characteristics. Ledergerg, Forssmann, and Hench have a concentration of points on the right side of the plot. This may indicate that there is a similar pattern of the points observed in the plot area. Mouse Cori, on the other hand, have greater points on the left side of the plot, in addition to some points by Lederberg. This may indicate some, but not complete patterns on the left side, since it is less concentrated. Thus, we may conclude that there may be patterns, or similar characteristics that are present among all mice. The spread is also present on the x-axis, indicating greater variability among the mice.
 
 
+# Section 3: Data Integration
 
-# Section 3 Data integration (20 pts).
+Trials from all sessions were used first to determine its performance. 
 
-I decide to use trials from all sessions first and see the performance. The feature I decide to use are session_id, trial_id, signals, and the average spike rate of each time bin.
+Variables used are `session_id`, `trial_id`, signals, and the average spike rate of each time bin.
 
-
-```{r}
+```{r echo=FALSE}
 predictive_feature <- c("session_id","trial_id","contrast_right","contrast_left", "contrast_diff" ,binename)
 head(full_functional_tibble[predictive_feature])
 ```
@@ -567,18 +563,15 @@ predictive_dat <- full_functional_tibble[predictive_feature]
 predictive_dat$trial_id <- as.numeric(predictive_dat$trial_id)
 label <- as.numeric(full_functional_tibble$success)
 X <- model.matrix(~., predictive_dat)
-
 ```
 
-# Section 4 Predictive modeling (20 pts).
+# Section 4: Predictive Modeling
 
-
-# Prediction
-## train the model on 80% trials and test it on the rest 
+The model is trained on 80% of the trials, which will be then tested on the rest of the models. 
 
 ```{r}
 # split
-set.seed(123) # for reproducibility
+set.seed(134) # for reproducibility
 trainIndex <- createDataPartition(label, p = .8, 
                                   list = FALSE, 
                                   times = 1)
@@ -591,15 +584,14 @@ train_label <- label[trainIndex]
 test_label <- label[-trainIndex]
 ```
 
-I decide to go with xgboost because I have lots of features, I expect there are some interactions among those interactions, and I have a relative large training set to avoid overfitting. 
+I decide to go with xgboost because I have lots of variables/features, I expect there are some interactions among those interactions, and I have a relative large training set to avoid overfitting. 
 
 ```{r}
-
 xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
-
 ```
 
-Prediction results (accuracy, confusion matrix, AUROC)
+## Prediction results 
+(accuracy, confusion matrix, AUROC)
 ```{r}
 predictions <- predict(xgb_model, newdata = test_X)
 predicted_labels <- as.numeric(ifelse(predictions > 0.5, 1, 0))
@@ -617,10 +609,9 @@ auroc <- roc(test_label, predictions)
 auroc
 ```
 
-# Section 5 Prediction performance on the test sets (5 pts).
+# Section 5: Prediction Performance on Test Sets
 
-
-## test the model's performance on 50 random trials from session 18
+## Test the Model's Performance on 50 Random Trials from Session 18
 ```{r}
 # split
 set.seed(123) # for reproducibility
@@ -638,7 +629,8 @@ train_label <- label[trainIndex]
 test_label <- label[-trainIndex]
 ```
 
-Prediction results (accuracy, confusion matrix, AUROC)
+## Prediction Results 
+(accuracy, confusion matrix, AUROC)
 
 ```{r}
 xgb_model <- xgboost(data = train_X, label = train_label, objective = "binary:logistic", nrounds=10)
@@ -652,7 +644,7 @@ auroc <- roc(test_label, predictions)
 auroc
 ```
 
-## test the model's performance on 50 random trials from session 1
+## Test the Model's Performance on 50 Random Trials From Session 1
 ```{r,echo=FALSE}
 # split
 set.seed(123) # for reproducibility
@@ -686,7 +678,7 @@ auroc
 
 # Section 6 Discussion (5 pts).
 
- [ADD DISCUSSION HERE]
+  Due to time constraints, I was not able to successfully finish the project, and implement my prediction model. However, I mostly focused on Sections 1-3, and had focused on Exploratory Data Analysis methods, which I feel most confident in. While undergoing this project has helped me understand data science concepts thoroughly, I would have had more interest and passion into the creation of this project if a different dataset were to be used. If more time was given, I would have also explored other models to be implemented in my project, however the scope of my knowledge is beyond 
  
 # Reference {-}
 
